@@ -1,11 +1,10 @@
-import React, { useState, useEffect, useRef } from "react";
-import html2canvas from "html2canvas";
+import React, { useState, useEffect } from "react";
 import appLogo from "./assets/custodiapp_logo.png";
 
 // ======================
 // CONSTANTES Y CONFIGURACIÓN
 // ======================
-const TABS = ["Calendario", "Excepciones", "Vacaciones", "Importar", "Exportar", "Ajustes"];
+const TABS = ["Calendario", "Excepciones", "Vacaciones", "Importar", "Ajustes"];
 
 const MONTH_NAMES = [
   "enero", "febrero", "marzo", "abril", "mayo", "junio",
@@ -34,22 +33,24 @@ const formatDisplayDate = (dStr) => {
 const getShiftStatus = (dateObj, baseDateStr, baseWithKids, exceptions, vacations) => {
   const dateStr = formatDateStr(dateObj);
 
-  // 1) Excepciones mandan
+  // 1) Excepciones
   const ex = exceptions.find(
-    (e) => e.start && e.end && e.start <= dateStr && dateStr <= e.end
+    e => e.start && e.end && e.start <= dateStr && dateStr <= e.end
   );
-  if (ex) return ex.owner === "conmigo";
+  if (ex) return e.owner === "conmigo";
 
-  // 2) Vacaciones pisan al patrón base
-  const vac = vacations.find(
-    (v) => v.from && v.to && v.from <= dateStr && dateStr <= v.to
-  );
+  // 2) Vacaciones
+  const vac = vacations.find(v => v.from <= dateStr && dateStr <= v.to);
   if (vac) return vac.withKids;
 
-  // 3) Patrón base de semanas alternas
-  const [bY, bM, bD] = baseDateStr.split("-").map((n) => parseInt(n, 10));
+  // 3) Patrón base alterno
+  const [bY, bM, bD] = baseDateStr.split("-").map(n => parseInt(n, 10));
   const baseUTC = Date.UTC(bY, bM - 1, bD);
-  const targetUTC = Date.UTC(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate());
+  const targetUTC = Date.UTC(
+    dateObj.getFullYear(),
+    dateObj.getMonth(),
+    dateObj.getDate()
+  );
   const diffDays = Math.floor((targetUTC - baseUTC) / MS_PER_DAY);
   const weeksPassed = Math.floor(diffDays / 7);
   return weeksPassed % 2 === 0 ? baseWithKids : !baseWithKids;
@@ -61,7 +62,6 @@ const getShiftStatus = (dateObj, baseDateStr, baseWithKids, exceptions, vacation
 export default function App() {
   const [activeTab, setActiveTab] = useState("Calendario");
 
-  // Estado persistente
   const [baseDate, setBaseDate] = useState(
     () => localStorage.getItem("custodiapp.baseDate") || "2026-01-19"
   );
@@ -81,8 +81,6 @@ export default function App() {
     () => JSON.parse(localStorage.getItem("custodiapp.vacations") || "[]")
   );
 
-  const calendarRef = useRef(null);
-
   useEffect(() => {
     localStorage.setItem("custodiapp.baseDate", baseDate);
     localStorage.setItem("custodiapp.withKids", String(withKids));
@@ -91,18 +89,6 @@ export default function App() {
     localStorage.setItem("custodiapp.exceptions", JSON.stringify(exceptions));
     localStorage.setItem("custodiapp.vacations", JSON.stringify(vacations));
   }, [baseDate, withKids, colorWithKids, colorNoKids, exceptions, vacations]);
-
-  const handleExportImage = async () => {
-    if (!calendarRef.current) return;
-    const canvas = await html2canvas(calendarRef.current, {
-      backgroundColor: "#ffffff",
-      scale: 2,
-    });
-    const link = document.createElement("a");
-    link.download = `CustodiApp_${new Date().getFullYear()}.png`;
-    link.href = canvas.toDataURL("image/png");
-    link.click();
-  };
 
   return (
     <div style={styles.page}>
@@ -125,7 +111,6 @@ export default function App() {
       </nav>
 
       <main style={styles.card}>
-        {/* Calendario */}
         <div
           style={
             activeTab === "Calendario"
@@ -140,35 +125,24 @@ export default function App() {
             colorNoKids={colorNoKids}
             exceptions={exceptions}
             vacations={vacations}
-            calendarRef={calendarRef}
           />
         </div>
 
-        {/* Excepciones */}
         {activeTab === "Excepciones" && (
           <ExcepcionesView
             exceptions={exceptions}
             setExceptions={setExceptions}
           />
         )}
-
-        {/* Vacaciones */}
         {activeTab === "Vacaciones" && (
           <VacacionesView vacations={vacations} setVacations={setVacations} />
         )}
-
-        {/* Importar / Exportar / Ajustes */}
         {activeTab === "Importar" && (
           <ViewPlaceholder
             title="Importar acuerdo"
-            desc="Sube tu PDF para lectura automática (futuro desarrollo)."
+            desc="En futuras versiones podrás subir tu PDF de convenio para que CustodiApp lo lea automáticamente."
           />
         )}
-
-        {activeTab === "Exportar" && (
-          <ExportarView onExport={handleExportImage} />
-        )}
-
         {activeTab === "Ajustes" && (
           <AjustesView
             baseDate={baseDate}
@@ -184,8 +158,8 @@ export default function App() {
       </main>
 
       <footer style={styles.footer}>
-  CustodiApp · Proyecto en desarrollo · MODO CLARO ON
-</footer>
+        CustodiApp · Proyecto en desarrollo
+      </footer>
     </div>
   );
 }
@@ -219,8 +193,7 @@ function CalendarioView({
   colorWithKids,
   colorNoKids,
   exceptions,
-  vacations,
-  calendarRef,
+  vacations
 }) {
   const [viewDate, setViewDate] = useState(new Date());
   const [lookupDate, setLookupDate] = useState("");
@@ -230,9 +203,8 @@ function CalendarioView({
   const month = viewDate.getMonth();
   const today = new Date();
 
-  const handleMonthNav = (offset) => {
+  const handleMonthNav = (offset) =>
     setViewDate(new Date(year, month + offset, 1));
-  };
 
   const handleLookup = () => {
     if (!lookupDate) return;
@@ -241,13 +213,15 @@ function CalendarioView({
     setViewDate(new Date(d.getFullYear(), d.getMonth(), 1));
     const status = getShiftStatus(d, baseDate, withKids, exceptions, vacations);
     setLookupResult(
-      status ? "Ese día te toca CON niñ@s" : "Ese día te toca SIN niñ@s"
+      status
+        ? "Ese día te toca CON niñ@s"
+        : "Ese día te toca SIN niñ@s"
     );
   };
 
   const generateGrid = () => {
     const cells = [];
-    const firstDay = (new Date(year, month, 1).getDay() + 6) % 7; // Lunes = 0
+    const firstDay = (new Date(year, month, 1).getDay() + 6) % 7;
     const daysInMonth = new Date(year, month + 1, 0).getDate();
     const prevMonthDays = new Date(year, month, 0).getDate();
 
@@ -264,27 +238,12 @@ function CalendarioView({
     return cells;
   };
 
-  // Texto "Esta semana: CON / SIN"
-  const todayStatus = getShiftStatus(
-    today,
-    baseDate,
-    withKids,
-    exceptions,
-    vacations
-  );
-  const semanaTexto = todayStatus ? "CON" : "SIN";
-
   return (
-    <div ref={calendarRef} style={{ backgroundColor: "#ffffff" }}>
+    <div style={{ backgroundColor: "#ffffff" }}>
       <h2 style={styles.blockTitle}>Calendario de custodia</h2>
-      <p style={styles.blockText}>
-        Navega mes a mes y consulta rápidamente si en una fecha concreta te toca
-        con niñ@s o sin niñ@s. Las vacaciones y excepciones pisan el patrón base
-        de semanas alternas.
-      </p>
-      <p style={{ ...styles.blockText, fontWeight: "bold" }}>
-        Esta semana: {semanaTexto} 🧘
-      </p>
+<p style={styles.blockText}>
+  Navega mes a mes y consulta rápidamente si en una semana concreta te toca con niñ@s o sin niñ@s.
+</p>
 
       <div style={styles.lookupRow}>
         <input
@@ -343,7 +302,7 @@ function CalendarioView({
                   ? "2px solid #111827"
                   : "1px solid rgba(0,0,0,0.1)",
                 color: "#1e293b",
-                fontWeight: isToday ? "bold" : "normal",
+                fontWeight: isToday ? "bold" : "normal"
               }}
             >
               {d.getDate()}
@@ -356,13 +315,13 @@ function CalendarioView({
         <div style={styles.legendItem}>
           <span
             style={{ ...styles.legendDot, backgroundColor: colorWithKids }}
-          />
+          />{" "}
           Con niñ@s
         </div>
         <div style={styles.legendItem}>
           <span
             style={{ ...styles.legendDot, backgroundColor: colorNoKids }}
-          />
+          />{" "}
           Sin niñ@s
         </div>
       </div>
@@ -375,7 +334,7 @@ function ExcepcionesView({ exceptions, setExceptions }) {
     start: "",
     end: "",
     owner: "conmigo",
-    type: "intercambio",
+    type: "intercambio"
   });
 
   const addEx = (e) => {
@@ -389,9 +348,10 @@ function ExcepcionesView({ exceptions, setExceptions }) {
     <div>
       <h2 style={styles.blockTitle}>Excepciones</h2>
       <p style={styles.blockText}>
-        Aquí apuntas los cambios puntuales sobre el calendario base: vacaciones
+        Aquí apuntas cambios puntuales sobre el calendario base: vacaciones
         extra, intercambios de fin de semana, viajes largos, etc.
       </p>
+
       <form onSubmit={addEx} style={styles.formContainer}>
         <label style={styles.label}>
           Desde:
@@ -415,16 +375,19 @@ function ExcepcionesView({ exceptions, setExceptions }) {
             style={styles.input}
           />
         </label>
-        <select
-          value={form.owner}
-          onChange={(e) =>
-            setForm({ ...form, owner: e.target.value })
-          }
-          style={styles.select}
-        >
-          <option value="conmigo">Conmigo</option>
-          <option value="otra_parte">Con la otra parte</option>
-        </select>
+        <label style={styles.label}>
+          ¿Con quién?
+          <select
+            value={form.owner}
+            onChange={(e) =>
+              setForm({ ...form, owner: e.target.value })
+            }
+            style={styles.select}
+          >
+            <option value="conmigo">Conmigo</option>
+            <option value="otra_parte">Con la otra parte</option>
+          </select>
+        </label>
         <button type="submit" style={styles.primaryButton}>
           Añadir excepción
         </button>
@@ -455,7 +418,7 @@ function VacacionesView({ vacations, setVacations }) {
     name: "",
     from: "",
     to: "",
-    withKids: true,
+    withKids: true
   });
 
   const addVac = () => {
@@ -467,35 +430,46 @@ function VacacionesView({ vacations, setVacations }) {
   return (
     <div>
       <h2 style={styles.blockTitle}>Vacaciones</h2>
+      <p style={styles.blockText}>
+        Define los bloques de vacaciones (Navidad, verano, Semana Santa…) y con
+        quién estarán los niñ@s.
+      </p>
+
       <div style={styles.formContainer}>
         <input
           type="text"
-          placeholder="Nombre (verano, Navidad...)"
+          placeholder="Nombre del periodo (ej. Verano 2026)"
           value={form.name}
-          onChange={(e) => setForm({ ...form, name: e.target.value })}
+          onChange={(e) =>
+            setForm({ ...form, name: e.target.value })
+          }
           style={styles.input}
         />
         <input
           type="date"
           value={form.from}
-          onChange={(e) => setForm({ ...form, from: e.target.value })}
+          onChange={(e) =>
+            setForm({ ...form, from: e.target.value })
+          }
           style={styles.input}
         />
         <input
           type="date"
           value={form.to}
-          onChange={(e) => setForm({ ...form, to: e.target.value })}
+          onChange={(e) =>
+            setForm({ ...form, to: e.target.value })
+          }
           style={styles.input}
         />
         <button onClick={addVac} style={styles.primaryButton}>
-          Guardar vacaciones
+          Guardar
         </button>
       </div>
 
       {vacations.map((v) => (
         <div key={v.id} style={styles.listItem}>
           <span>
-            {v.name || "Sin nombre"}: {formatDisplayDate(v.from)} -{" "}
+            {v.name}: {formatDisplayDate(v.from)} -{" "}
             {formatDisplayDate(v.to)}
           </span>
           <button
@@ -520,11 +494,12 @@ function AjustesView({
   colorWithKids,
   setColorWithKids,
   colorNoKids,
-  setColorNoKids,
+  setColorNoKids
 }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "15px" }}>
       <h2 style={styles.blockTitle}>Ajustes</h2>
+
       <label style={styles.label}>
         Inicio del patrón:
         <input
@@ -534,14 +509,16 @@ function AjustesView({
           style={styles.input}
         />
       </label>
+
       <label style={styles.label}>
-        ¿Empiezas con niñ@s?
+        ¿Empieza CON niñ@s?
         <input
           type="checkbox"
           checked={withKids}
           onChange={(e) => setWithKids(e.target.checked)}
         />
       </label>
+
       <label style={styles.label}>
         Color CON:
         <input
@@ -550,6 +527,7 @@ function AjustesView({
           onChange={(e) => setColorWithKids(e.target.value)}
         />
       </label>
+
       <label style={styles.label}>
         Color SIN:
         <input
@@ -561,19 +539,6 @@ function AjustesView({
     </div>
   );
 }
-
-const ExportarView = ({ onExport }) => (
-  <div>
-    <h2 style={styles.blockTitle}>Exportar</h2>
-    <p style={styles.blockText}>
-      Exporta tu calendario como imagen para compartirlo por WhatsApp, email,
-      etc.
-    </p>
-    <button onClick={onExport} style={styles.primaryButton}>
-      Descargar imagen
-    </button>
-  </div>
-);
 
 // ======================
 // ESTILOS
@@ -587,14 +552,14 @@ const styles = {
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
-    boxSizing: "border-box",
+    boxSizing: "border-box"
   },
   header: {
     width: "100%",
     maxWidth: "900px",
     display: "flex",
     justifyContent: "space-between",
-    marginBottom: "20px",
+    marginBottom: "20px"
   },
   headerLeft: { display: "flex", alignItems: "center", gap: "15px" },
   logo: { width: "80px", height: "80px", objectFit: "contain" },
@@ -606,30 +571,32 @@ const styles = {
     color: "#065f46",
     padding: "4px 8px",
     borderRadius: "10px",
-    alignSelf: "center",
+    alignSelf: "center"
   },
-  tabsRow: {
-    display: "flex",
+    tabsRow: {
+    // Usamos grid para que se repartan en filas, sin scroll lateral
+    display: "grid",
+    gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
     gap: "8px",
-    overflowX: "auto",
     width: "100%",
     maxWidth: "900px",
     marginBottom: "15px",
   },
   tabButton: {
-    padding: "8px 16px",
+    padding: "8px 10px",
     borderRadius: "20px",
     border: "1px solid #e5e7eb",
-    backgroundColor: "#fff",
+    backgroundColor: "#ffffff",
     cursor: "pointer",
     color: "#1e293b",
     fontSize: "13px",
     whiteSpace: "nowrap",
+    textAlign: "center",
   },
   tabButtonActive: {
     backgroundColor: "#0284c7",
     color: "#ffffff",
-    borderColor: "#0284c7",
+    borderColor: "#0284c7"
   },
   card: {
     width: "100%",
@@ -639,7 +606,7 @@ const styles = {
     padding: "20px",
     boxShadow: "0 4px 12px rgba(0,0,0,0.05)",
     boxSizing: "border-box",
-    color: "#1e293b",
+    color: "#1e293b"
   },
   tabContentHidden: { display: "none" },
   tabContentActive: { display: "block" },
@@ -652,6 +619,7 @@ const styles = {
     fontSize: "14px",
     backgroundColor: "#ffffff",
     color: "#1e293b",
+    colorScheme: "light"
   },
   select: {
     padding: "8px",
@@ -660,6 +628,7 @@ const styles = {
     fontSize: "14px",
     backgroundColor: "#ffffff",
     color: "#1e293b",
+    colorScheme: "light"
   },
   primaryButton: {
     padding: "10px 20px",
@@ -668,22 +637,21 @@ const styles = {
     backgroundColor: "#0ea5e9",
     color: "#fff",
     cursor: "pointer",
-    fontWeight: "bold",
+    fontWeight: "bold"
   },
   secondaryButton: {
     padding: "8px 16px",
     borderRadius: "20px",
     border: "1px solid #cbd5e1",
     backgroundColor: "#fff",
-    color: "#1e293b",
-    cursor: "pointer",
+    color: "#1e293b"
   },
   monthHeader: {
     display: "flex",
     justifyContent: "center",
     alignItems: "center",
     gap: "20px",
-    margin: "15px 0",
+    margin: "15px 0"
   },
   navButton: {
     padding: "5px 15px",
@@ -691,7 +659,7 @@ const styles = {
     border: "1px solid #e5e7eb",
     cursor: "pointer",
     color: "#1e293b",
-    backgroundColor: "#ffffff",
+    backgroundColor: "#ffffff"
   },
   monthTitle: { fontSize: "17px", fontWeight: "bold", color: "#1e293b" },
   weekdaysRow: {
@@ -699,34 +667,30 @@ const styles = {
     gridTemplateColumns: "repeat(7, 1fr)",
     textAlign: "center",
     marginBottom: "8px",
-    color: "#1e293b",
+    color: "#1e293b"
   },
   weekdayCell: { fontWeight: "bold", fontSize: "13px" },
-  daysGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(7, 1fr)",
-    gap: "5px",
-  },
+  daysGrid: { display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: "5px" },
   dayCell: {
     aspectRatio: "1/1",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     borderRadius: "8px",
-    fontSize: "14px",
+    fontSize: "14px"
   },
   legendRow: {
     display: "flex",
     gap: "15px",
     marginTop: "15px",
-    justifyContent: "center",
+    justifyContent: "center"
   },
   legendItem: {
     display: "flex",
     alignItems: "center",
     gap: "6px",
     fontSize: "12px",
-    color: "#1e293b",
+    color: "#1e293b"
   },
   legendDot: { width: "10px", height: "10px", borderRadius: "50%" },
   lookupRow: {
@@ -734,7 +698,7 @@ const styles = {
     gap: "10px",
     alignItems: "center",
     marginBottom: "15px",
-    flexWrap: "wrap",
+    flexWrap: "wrap"
   },
   lookupMessage: { fontSize: "12px", color: "#0284c7", margin: 0 },
   formContainer: {
@@ -744,14 +708,14 @@ const styles = {
     marginBottom: "20px",
     backgroundColor: "#f8fafc",
     padding: "15px",
-    borderRadius: "12px",
+    borderRadius: "12px"
   },
   label: {
     display: "flex",
     flexDirection: "column",
     gap: "5px",
     fontSize: "13px",
-    color: "#1e293b",
+    color: "#1e293b"
   },
   listItem: {
     display: "flex",
@@ -759,13 +723,17 @@ const styles = {
     padding: "10px",
     borderBottom: "1px solid #f1f5f9",
     color: "#1e293b",
-    fontSize: "13px",
+    fontSize: "13px"
   },
   deleteTextButton: {
     border: "none",
     background: "none",
     color: "#ef4444",
-    cursor: "pointer",
+    cursor: "pointer"
   },
-  footer: { marginTop: "20px", fontSize: "11px", color: "#94a3b8" },
+  footer: {
+    marginTop: "20px",
+    fontSize: "11px",
+    color: "#94a3b8"
+  }
 };
