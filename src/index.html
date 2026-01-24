@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <!-- Forzar modo CLARO en navegadores móviles -->
+    <meta name="color-scheme" content="light" />
+    <meta name="supported-color-schemes" content="light" />
+    <meta name="theme-color" content="#f7f3eb" />
+    <meta name="msapplication-navbutton-color" content="#f7f3eb" />
+
+    <title>CustodiApp</title>
+
+    <style>
+      /* 1. Raíz y cuerpo en modo claro */
+      :root {
+        color-scheme: light !important;
+        --supported-color-schemes: light !important;
+      }
+
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        background-color: #f7f3eb !important;
+        color: #1e293b !important;
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+          sans-serif;
+      }
+
+      /* 2. Inputs y selects sin “oscurecido automático” de Android */
+      input,
+      select,
+      textarea,
+      button {
+        color-scheme: light !important;
+        background-color: #ffffff !important;
+        color: #1e293b !important;
+        border: 1px solid #cbd5e1 !important;
+        -webkit-appearance: none;
+        appearance: none;
+      }
+
+      /* Flechita visible en los selects */
+      select {
+        background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E");
+        background-position: right 0.5rem center;
+        background-repeat: no-repeat;
+        background-size: 1.5em 1.5em;
+        padding-right: 2.5rem !important;
+      }
+
+      /* 3. Botones y pestañas con texto siempre visible */
+      button,
+      .tabButton {
+        background-color: #ffffff !important;
+        color: #1e293b !important;
+      }
+
+      button:active {
+        background-color: #e2e8f0 !important;
+      }
+
+      /* 4. Nos aseguramos de que no haya textos en blanco fantasma */
+      p,
+      h1,
+      h2,
+      h3,
+      span,
+      div {
+        color: #1e293b !important;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
