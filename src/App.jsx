@@ -4,17 +4,25 @@ import { toPng } from 'html-to-image';
 const App = () => {
   const [vista, setVista] = useState('Calendario');
   const [fechaVisualizacion, setFechaVisualizacion] = useState(new Date());
+  
+  // --- COLORES ---
   const [misColores, setMisColores] = useState(() => {
     const c = localStorage.getItem('custodia_colores');
     return c ? JSON.parse(c) : { con: '#76B852', sin: '#FFFFFF' };
   });
+
+  // --- CICLO BASE ---
   const [cicloPersonalizado, setCicloPersonalizado] = useState(() => {
     const g = localStorage.getItem('custodia_ciclo');
     return g ? JSON.parse(g) : [true,true,true,true,true,true,true,false,false,false,false,false,false,false];
   });
+
+  // --- FECHA INICIO ---
   const [inicioCicloStr, setInicioCicloStr] = useState(() => {
     return localStorage.getItem('custodia_inicio_ciclo') || '2026-01-26';
   });
+
+  // --- DATOS ---
   const [excepciones, setExcepciones] = useState(() => {
     const g = localStorage.getItem('custodia_notas');
     return g ? JSON.parse(g) : {};
@@ -23,12 +31,26 @@ const App = () => {
     const g = localStorage.getItem('custodia_vacaciones');
     return g ? JSON.parse(g) : [];
   });
+
+  // --- CONVENIO ---
   const [convenio, setConvenio] = useState(() => {
     const saved = localStorage.getItem('custodia_convenio_reglas');
-    return saved ? JSON.parse(saved) : { ss_par: 'con', julio_par: 'con', agosto_par: 'sin', navidad_par: 'con' };
+    return saved ? JSON.parse(saved) : {
+      ss_par: 'con',       
+      julio_par: 'con',    
+      agosto_par: 'sin',   
+      navidad_par: 'con'   
+    };
   });
   
+  const hoyISO = new Date().toISOString().split('T')[0];
+  const [vacaInicio, setVacaInicio] = useState(hoyISO);
+  const [vacaFin, setVacaFin] = useState(hoyISO);
+  const [vacaTipo, setVacaTipo] = useState('con');
+  const [diaSeleccionado, setDiaSeleccionado] = useState(null);
+  const [textoExcepcion, setTextoExcepcion] = useState('');
   const [seccionAbierta, setSeccionAbierta] = useState(null);
+
   const calendarRef = useRef(null);
   const hoy = new Date();
   const diasSemana = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
@@ -42,26 +64,41 @@ const App = () => {
     localStorage.setItem('custodia_convenio_reglas', JSON.stringify(convenio));
   }, [cicloPersonalizado, inicioCicloStr, excepciones, vacaciones, misColores, convenio]);
 
+  // --- HELPER: CONTRASTE ---
   const getTextoParaFondo = (hex) => {
     if (!hex) return '#2D408F';
-    const r = parseInt(hex.substring(1, 3), 16) || 0;
-    const g = parseInt(hex.substring(3, 5), 16) || 0;
-    const b = parseInt(hex.substring(5, 7), 16) || 0;
-    return (((r * 299) + (g * 587) + (b * 114)) / 1000) >= 180 ? '#2D408F' : '#FFFFFF';
+    const clean = hex.replace('#', '');
+    if (clean.length !== 6) return '#2D408F'; 
+    const r = parseInt(clean.substring(0, 2), 16);
+    const g = parseInt(clean.substring(2, 4), 16);
+    const b = parseInt(clean.substring(4, 6), 16);
+    const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
+    return (yiq >= 180) ? '#2D408F' : '#FFFFFF';
   };
 
-  const getEstadoDia = (f) => {
+  // --- LÓGICA FECHAS ---
+  const esFechaEnVacaciones = (f) => {
     const ft = new Date(f.getFullYear(), f.getMonth(), f.getDate()).getTime();
     for (let v of vacaciones) {
       if (ft >= new Date(v.inicio).getTime() && ft <= new Date(v.fin).getTime()) return v.tipo === 'con';
     }
-    const id = f.toDateString();
-    if (excepciones[id]?.estado) return excepciones[id].estado === 'con';
+    return null;
+  };
+
+  const tieneCustodiaOriginal = (f) => {
     const ref = new Date(inicioCicloStr); 
     const dias = Math.floor((f.getTime() - ref.getTime()) / (1000 * 60 * 60 * 24));
     let pos = dias % 14;
     if (pos < 0) pos += 14;
     return cicloPersonalizado[pos];
+  };
+
+  const getEstadoDia = (f) => {
+    const vaca = esFechaEnVacaciones(f);
+    if (vaca !== null) return vaca;
+    const id = f.toDateString();
+    if (excepciones[id]?.estado) return excepciones[id].estado === 'con';
+    return tieneCustodiaOriginal(f);
   };
 
   const getCeldas = (any, mes) => {
@@ -75,96 +112,254 @@ const App = () => {
     return res;
   };
 
-  const estiloBtnDefinitivo = (seccion, valorBoton, tipoColor, label) => {
-    const bg = tipoColor === 'con' ? misColores.con : misColores.sin;
-    const activo = convenio[seccion] === valorBoton;
-    return (
-      <button 
-        onClick={() => setConvenio({...convenio, [seccion]: valorBoton})}
-        style={{
-          flex: 1, padding: '10px', borderRadius: '8px', backgroundColor: bg, color: getTextoParaFondo(bg),
-          border: activo ? '3px solid #2D408F' : (bg.toLowerCase()==='#ffffff'?'1px solid #DDD':'none'),
-          fontWeight: activo ? '900' : '600', fontSize: '8px'
-        }}>
-        {label}
-      </button>
-    );
+  const capturar = () => {
+    if (!calendarRef.current) return;
+    toPng(calendarRef.current, { cacheBust: true, filter: (n) => n.tagName !== 'BUTTON' && !n.classList?.contains('no-capture') })
+      .then((url) => { const a = document.createElement('a'); a.download = 'CustodiApp.png'; a.href = url; a.click(); });
+  };
+
+  const abrirEditor = (id) => {
+    setDiaSeleccionado(id);
+    setTextoExcepcion(excepciones[id]?.nota || '');
+  };
+
+  const toggleSeccion = (sec) => {
+    if (seccionAbierta === sec) setSeccionAbierta(null);
+    else setSeccionAbierta(sec);
+  };
+
+  // --- LÓGICA BOTONES ---
+  const estiloBtnDirecto = (activo, tipo) => {
+    const colorFondo = tipo === 'con' ? misColores.con : misColores.sin;
+    const bg = colorFondo;
+    const txt = getTextoParaFondo(bg);
+    let border = '1px solid #DDD';
+    let boxShadow = 'none';
+    let fontWeight = '700';
+    if (activo) {
+        border = '3px solid #2D408F'; 
+        boxShadow = '0 2px 6px rgba(0,0,0,0.15)';
+        fontWeight = '900';
+    }
+    return {
+      flex: 1, padding: '10px', borderRadius: '8px', backgroundColor: bg, color: txt, border: border,
+      fontWeight: fontWeight, fontSize: '9px', cursor: 'pointer', boxShadow: boxShadow, transition: 'all 0.15s ease-out'
+    };
   };
 
   return (
     <div style={{ fontFamily: 'system-ui, sans-serif', backgroundColor: '#FFF', height: '100dvh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      
+      {/* HEADER */}
       <header style={{ padding: '8px 10px', borderBottom: '1px solid #EEE' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <img src="/image2.png" alt="Logo" style={{ width: '40px' }} />
+            <img src="/image2.png" alt="Logo" style={{ width: '45px', height: '45px', objectFit: 'contain', borderRadius: '5px' }} />
             <div>
-              <h1 style={{ fontSize: '18px', fontWeight: '900', color: '#2D408F', margin: 0 }}>CustodiApp</h1>
-              <p style={{ margin: 0, fontSize: '8px', color: '#5F6368' }}>GESTIÓN FAMILIAR</p>
+              <h1 style={{ fontSize: '20px', fontWeight: '900', color: '#2D408F', margin: 0 }}>CustodiApp</h1>
+              <p style={{ margin: 0, fontSize: '9px', color: '#5F6368', fontWeight: '800' }}>GESTIÓN FAMILIAR</p>
             </div>
           </div>
+          <button onClick={capturar} style={{ fontSize: '18px', background: '#F8F9FA', border: '1px solid #DDD', borderRadius: '50%', width: '36px', height: '36px' }}>📸</button>
         </div>
-        <nav style={{ display: 'flex', gap: '2px', marginTop: '5px' }}>
-          {['Calendario', 'Año', 'Vacac.', 'Ajustes'].map(v => (
-            <button key={v} onClick={() => setVista(v)} style={{ flex: 1, height: '30px', fontSize: '9px', fontWeight: '900', backgroundColor: vista === v ? '#2D408F' : '#F8F9FA', color: vista === v ? '#FFF' : '#2D408F', border: 'none', borderRadius: '5px' }}>{v.toUpperCase()}</button>
+        
+        <nav style={{ display: 'flex', gap: '2px', justifyContent: 'space-between', alignItems: 'center' }}>
+          {['Calendario', 'Año', 'Vacac.', 'Excep.', 'Ajustes'].map(v => (
+            <button key={v} onClick={() => setVista(v)} style={{ flex: v === 'Calendario' ? 2 : 1, height: '32px', fontSize: v === 'Ajustes' ? '24px' : (v === 'Calendario' ? '10px' : '9px'), fontWeight: '900', borderRadius: '6px', border: 'none', backgroundColor: vista === v ? '#2D408F' : '#F8F9FA', color: vista === v ? '#FFF' : '#2D408F', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              {v === 'Ajustes' ? '⚙️' : v.toUpperCase()}
+            </button>
           ))}
         </nav>
       </header>
 
-      <main style={{ flex: 1, padding: '10px', overflowY: 'auto' }}>
+      {/* MAIN */}
+      <main ref={calendarRef} style={{ flex: 1, padding: '5px 10px', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        
         {vista === 'Calendario' && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '5px' }}>
+          <>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
+              <button onClick={() => setFechaVisualizacion(new Date(fechaVisualizacion.getFullYear(), fechaVisualizacion.getMonth() - 1, 1))} style={{ fontSize: '24px', border: 'none', background: 'none', color: '#2D408F' }}>◀</button>
+              <div style={{ textAlign: 'center' }}>
+                <h2 style={{ fontSize: '18px', margin: 0, fontWeight: '900', color: '#2D408F' }}>{new Intl.DateTimeFormat('es', { month: 'long', year: 'numeric' }).format(fechaVisualizacion).toUpperCase()}</h2>
+                <button onClick={() => setFechaVisualizacion(new Date())} style={{ border: 'none', background: 'none', color: '#76B852', fontSize: '11px', fontWeight: '900', textDecoration: 'underline' }}>VOLVER AL DÍA DE HOY</button>
+              </div>
+              <button onClick={() => setFechaVisualizacion(new Date(fechaVisualizacion.getFullYear(), fechaVisualizacion.getMonth() + 1, 1))} style={{ fontSize: '24px', border: 'none', background: 'none', color: '#2D408F' }}>▶</button>
+            </div>
+            
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '6px', flex: 1, alignContent: 'center' }}>
+              {diasSemana.map(d => <div key={d} style={{ textAlign: 'center', fontSize: '12px', fontWeight: '900', color: '#AAA' }}>{d}</div>)}
               {getCeldas(fechaVisualizacion.getFullYear(), fechaVisualizacion.getMonth()).map((c, i) => {
-                const bg = c.m === 0 ? (getEstadoDia(c.f) ? misColores.con : misColores.sin) : '#EEE';
-                return <div key={i} onClick={() => { if(c.m===0) { setFechaVisualizacion(new Date(c.f)); } }} style={{ aspectRatio: '1/1', backgroundColor: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '8px', fontSize: '14px', fontWeight: '900', color: getTextoParaFondo(bg), border: c.f.toDateString() === hoy.toDateString() ? '3px solid #2D408F' : '1px solid #EEE', opacity: c.m === 0 ? 1 : 0.3 }}>{c.d}</div>
+                const custodial = getEstadoDia(c.f);
+                const esDelMes = c.m === 0;
+                const bg = custodial ? misColores.con : misColores.sin;
+                const txt = getTextoParaFondo(bg);
+                const border = c.f.toDateString() === hoy.toDateString() ? '3px solid #2D408F' : '1px solid #EEE';
+                return (
+                  <div key={i} onClick={() => abrirEditor(c.f.toDateString())}
+                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', aspectRatio: '1 / 1', fontSize: '18px', fontWeight: '900', borderRadius: '12px', backgroundColor: bg, color: txt, border: border, position: 'relative', opacity: esDelMes ? 1 : 0.3, pointerEvents: esDelMes ? 'auto' : 'none' }}>
+                    {c.d}
+                    {excepciones[c.f.toDateString()] && <div style={{ width: '6px', height: '6px', backgroundColor: '#F5A623', borderRadius: '50%', position: 'absolute', top: '3px', right: '3px', border: '1px solid white' }}></div>}
+                  </div>
+                );
               })}
             </div>
+
+            <div style={{ display: 'flex', gap: '8px', paddingBottom: '10px', marginTop: '10px' }}>
+              <div style={{ flex: 1, padding: '12px', backgroundColor: misColores.con, color: getTextoParaFondo(misColores.con), borderRadius: '10px', textAlign: 'center', fontWeight: '900', fontSize: '11px' }}>CON NIÑ@S</div>
+              <div style={{ flex: 1, padding: '12px', backgroundColor: misColores.sin, color: getTextoParaFondo(misColores.sin), borderRadius: '10px', textAlign: 'center', fontWeight: '900', border: '1.5px solid #EEE', fontSize: '11px' }}>SIN NIÑ@S</div>
+            </div>
+          </>
         )}
 
         {vista === 'Año' && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
-            {Array.from({ length: 12 }).map((_, i) => (
-              <div key={i} onClick={() => { setFechaVisualizacion(new Date(fechaVisualizacion.getFullYear(), i, 1)); setVista('Calendario'); }} style={{ border: '1px solid #EEE', borderRadius: '8px', padding: '4px', cursor: 'pointer' }}>
-                <h3 style={{ fontSize: '8px', textAlign: 'center', margin: '0 0 2px 0', color: '#2D408F' }}>{new Intl.DateTimeFormat('es', { month: 'short' }).format(new Date(fechaVisualizacion.getFullYear(), i, 1)).toUpperCase()}</h3>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '1px' }}>
-                  {getCeldas(fechaVisualizacion.getFullYear(), i).map((c, j) => {
-                    const bg = c.m === 0 ? (getEstadoDia(c.f) ? misColores.con : misColores.sin) : 'transparent';
-                    return <div key={j} style={{ width: '100%', aspectRatio: '1/1', backgroundColor: bg, borderRadius: '2px' }}></div>;
-                  })}
+          <div style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: '2px 0' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+              <button onClick={() => setFechaVisualizacion(new Date(fechaVisualizacion.getFullYear() - 1, 0, 1))} style={{ border: 'none', background: 'none', color: '#2D408F', fontSize: '24px' }}>◀</button>
+              <h2 style={{ fontSize: '20px', fontWeight: '900', color: '#2D408F' }}>AÑO {fechaVisualizacion.getFullYear()}</h2>
+              <button onClick={() => setFechaVisualizacion(new Date(fechaVisualizacion.getFullYear() + 1, 0, 1))} style={{ border: 'none', background: 'none', color: '#2D408F', fontSize: '24px' }}>▶</button>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', flex: 1 }}>
+              {Array.from({ length: 12 }).map((_, i) => (
+                <div key={i} 
+                  onClick={() => {
+                    // Acción: Cambiar el mes de visualización y saltar a la vista Calendario
+                    setFechaVisualizacion(new Date(fechaVisualizacion.getFullYear(), i, 1));
+                    setVista('Calendario');
+                  }}
+                  style={{ border: '1.2px solid #EEE', borderRadius: '12px', padding: '6px', display: 'flex', flexDirection: 'column', cursor: 'pointer', backgroundColor: '#FDFDFD' }}>
+                  <h3 style={{ fontSize: '9px', margin: '0 0 3px 0', textAlign: 'center', fontWeight: '900', color: '#2D408F' }}>{new Intl.DateTimeFormat('es', { month: 'short' }).format(new Date(fechaVisualizacion.getFullYear(), i, 1)).toUpperCase()}</h3>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '1.5px', flex: 1 }}>
+                    {getCeldas(fechaVisualizacion.getFullYear(), i).map((c, j) => {
+                      const custodial = getEstadoDia(c.f);
+                      const bg = c.m === 0 ? (custodial ? misColores.con : misColores.sin) : 'transparent';
+                      const txt = c.m === 0 ? getTextoParaFondo(bg) : '#EEE';
+                      return <div key={j} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '6px', fontWeight: '800', backgroundColor: bg, color: txt }}>{c.d}</div>;
+                    })}
+                  </div>
                 </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {vista === 'Vacac.' && (
+          <div style={{ padding: '10px', overflowY: 'auto', flex: 1 }}>
+            <h2 style={{ fontSize: '18px', fontWeight: '900', color: '#2D408F', marginBottom: '15px' }}>VACACIONES</h2>
+            <div style={{ backgroundColor: '#F8F9FA', padding: '15px', borderRadius: '15px', border: '1px solid #EEE', marginBottom: '15px' }}>
+              <input type="date" value={vacaInicio} onChange={e => setVacaInicio(e.target.value)} style={{ width: '100%', marginBottom: '10px', padding: '12px', borderRadius: '10px', border: '1px solid #DDD' }} />
+              <input type="date" value={vacaFin} onChange={e => setVacaFin(e.target.value)} style={{ width: '100%', marginBottom: '10px', padding: '12px', borderRadius: '10px', border: '1px solid #DDD' }} />
+              <div style={{ display: 'flex', gap: '8px', marginBottom: '15px' }}>
+                <button onClick={() => setVacaTipo('con')} style={estiloBtnDirecto(vacaTipo === 'con', 'con')}>CON NIÑ@S</button>
+                <button onClick={() => setVacaTipo('sin')} style={estiloBtnDirecto(vacaTipo === 'sin', 'sin')}>SIN NIÑ@S</button>
+              </div>
+              <button onClick={() => { if(vacaInicio && vacaFin) setVacaciones([...vacaciones, {inicio:vacaInicio, fin:vacaFin, tipo:vacaTipo}]); }} style={{ width: '100%', padding: '15px', backgroundColor: '#2D408F', color: '#FFF', borderRadius: '12px', fontWeight: '900' }}>GUARDAR</button>
+            </div>
+            {vacaciones.map((v, idx) => (
+              <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', padding: '12px', backgroundColor: v.tipo === 'con' ? '#E9F5E1' : '#E8EAF6', borderRadius: '10px', marginBottom: '8px', borderLeft: `5px solid ${v.tipo === 'con' ? misColores.con : misColores.sin}` }}>
+                <span style={{ fontSize: '12px', fontWeight: '700' }}>{new Date(v.inicio).toLocaleDateString('es-ES')} al {new Date(v.fin).toLocaleDateString('es-ES')}</span>
+                <button onClick={() => setVacaciones(vacaciones.filter((_, i) => i !== idx))} style={{ color: 'red', border: 'none', background: 'none', fontWeight: '900', fontSize: '18px' }}>✕</button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {vista === 'Excep.' && (
+          <div style={{ padding: '10px', overflowY: 'auto', flex: 1 }}>
+            <h2 style={{ fontSize: '18px', fontWeight: '900', color: '#2D408F', marginBottom: '15px' }}>EXCEPCIONES</h2>
+            <div style={{ backgroundColor: '#F8F9FA', padding: '15px', borderRadius: '15px', border: '1px solid #EEE', marginBottom: '20px' }}>
+              <input type="date" id="fechaEx" defaultValue={hoyISO} style={{ width: '100%', marginBottom: '10px', padding: '12px', borderRadius: '10px', border: '1px solid #DDD' }} />
+              <textarea id="notaEx" placeholder="Nota..." style={{ width: '100%', height: '60px', borderRadius: '10px', border: '1px solid #DDD', padding: '10px', marginBottom: '10px', fontSize: '14px' }} />
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button onClick={() => { const f = new Date(document.getElementById('fechaEx').value).toDateString(); setExcepciones({...excepciones, [f]: { nota: document.getElementById('notaEx').value, estado: 'con' }}); document.getElementById('notaEx').value = ''; }} style={{ flex: 1, padding: '12px', borderRadius: '10px', backgroundColor: misColores.con, color: getTextoParaFondo(misColores.con), border: 'none', fontWeight: '900', fontSize: '10px' }}>AÑADIR CON NIÑ@S</button>
+                <button onClick={() => { const f = new Date(document.getElementById('fechaEx').value).toDateString(); setExcepciones({...excepciones, [f]: { nota: document.getElementById('notaEx').value, estado: 'sin' }}); document.getElementById('notaEx').value = ''; }} style={{ flex: 1, padding: '12px', borderRadius: '10px', backgroundColor: misColores.sin, color: getTextoParaFondo(misColores.sin), border: '1px solid #DDD', fontWeight: '900', fontSize: '10px' }}>AÑADIR SIN NIÑ@S</button>
+              </div>
+            </div>
+            {Object.keys(excepciones).sort((a,b) => new Date(b)-new Date(a)).map(id => (
+              <div key={id} style={{ padding: '15px', backgroundColor: '#F8F9FA', borderRadius: '15px', marginBottom: '10px', borderLeft: `6px solid ${excepciones[id].estado === 'con' ? misColores.con : misColores.sin}`, position: 'relative' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: '#2D408F', fontWeight: '900' }}>{new Date(id).toLocaleDateString('es-ES')}</span>
+                  <button onClick={() => { const n = {...excepciones}; delete n[id]; setExcepciones(n); }} style={{ color: 'red', border: 'none', background: 'none', fontWeight: '900', fontSize: '18px' }}>✕</button>
+                </div>
+                <div style={{ fontSize: '10px', fontWeight: '800', color: excepciones[id].estado === 'con' ? misColores.con : '#2D408F' }}>{excepciones[id].estado === 'con' ? 'CON NIÑ@S' : 'SIN NIÑ@S'}</div>
+                {excepciones[id].nota && <div style={{ fontSize: '13px', fontStyle: 'italic', marginTop: '5px' }}>"{excepciones[id].nota}"</div>}
               </div>
             ))}
           </div>
         )}
 
         {vista === 'Ajustes' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <div style={{ border: '2px solid #2D408F', borderRadius: '10px', overflow: 'hidden' }}>
-              <div style={{ background: '#2D408F', color: '#FFF', padding: '8px', textAlign: 'center', fontSize: '10px', fontWeight: 'bold' }}>CONVENIO PARES</div>
-              {['ss', 'julio', 'agosto'].map(sec => (
-                <div key={sec} style={{ borderBottom: '1px solid #EEE' }}>
-                  <div onClick={() => setSeccionAbierta(seccionAbierta === sec ? null : sec)} style={{ padding: '10px', background: '#F8F9FA', fontSize: '10px', fontWeight: 'bold', display: 'flex', justifyContent: 'space-between' }}>
-                    {sec === 'ss' ? 'SEMANA SANTA' : sec.toUpperCase()} <span>{seccionAbierta === sec ? '−' : '+'}</span>
-                  </div>
-                  {seccionAbierta === sec && (
-                    <div style={{ padding: '8px', display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                      <div style={{ display: 'flex', gap: '5px' }}>
-                        {estiloBtnDefinitivo(`${sec}_par`, 'con', 'con', sec==='ss'?'ENTERA CON':'1ª QUINC. CON')}
-                        {estiloBtnDefinitivo(`${sec}_par`, 'sin', 'sin', sec==='ss'?'ENTERA SIN':'1ª QUINC. SIN')}
-                      </div>
-                      {sec === 'ss' && (
-                        <div style={{ display: 'flex', gap: '5px' }}>
-                          {estiloBtnDefinitivo('ss_par', 'mitad_con', 'con', '1ª MITAD CON')}
-                          {estiloBtnDefinitivo('ss_par', 'mitad_sin', 'sin', '1ª MITAD SIN')}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              ))}
+          <div style={{ padding: '10px', overflowY: 'auto', flex: 1 }}>
+            <h2 style={{ fontSize: '16px', fontWeight: '900', color: '#2D408F', marginBottom: '10px' }}>CONFIGURACIÓN CICLO</h2>
+            <div style={{ marginBottom: '15px' }}>
+              <label style={{ fontSize: '10px', fontWeight: '900', color: '#5F6368', marginBottom: '5px', display: 'block' }}>FECHA INICIO (LUNES DE REFERENCIA)</label>
+              <input type="date" value={inicioCicloStr} onChange={e => setInicioCicloStr(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '10px', border: '1px solid #DDD', fontWeight: '700', color: '#2D408F' }} />
             </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px', backgroundColor: '#F8F9FA', padding: '10px', borderRadius: '15px', border: '1px solid #EEE', marginBottom: '15px' }}>
+              {cicloPersonalizado.map((esCon, i) => {
+                const bg = esCon ? misColores.con : misColores.sin;
+                const txt = getTextoParaFondo(bg);
+                const border = (bg.toLowerCase() === '#ffffff' || bg.toLowerCase() === '#fff') ? '1px solid #DDD' : 'none';
+                return (
+                  <div key={i} onClick={() => { const n = [...cicloPersonalizado]; n[i] = !n[i]; setCicloPersonalizado(n); }} style={{ height: '35px', borderRadius: '8px', backgroundColor: bg, color: txt, border: border, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
+                    <span style={{ fontSize: '12px', fontWeight: '900' }}>{i+1}</span>
+                    <span style={{ fontSize: '7px', fontWeight: '800' }}>{esCon ? 'CON' : 'SIN'}</span>
+                  </div>
+                );
+              })}
+            </div>
+            <h3 style={{ fontSize: '12px', fontWeight: '900', color: '#5F6368', marginBottom: '8px' }}>PERSONALIZAR COLORES</h3>
+            <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: '#F8F9FA', padding: '10px', borderRadius: '10px', border: '1px solid #EEE' }}>
+                <div style={{ width: '30px', height: '30px', borderRadius: '50%', backgroundColor: misColores.con, border: '2px solid #ddd', position: 'relative' }}>
+                  <input type="color" value={misColores.con} onChange={(e) => setMisColores({...misColores, con: e.target.value})} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer' }} />
+                </div>
+                <span style={{ fontSize: '10px', fontWeight: '900', color: '#2D408F' }}>CON NIÑ@S</span>
+              </div>
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: '#F8F9FA', padding: '10px', borderRadius: '10px', border: '1px solid #EEE' }}>
+                <div style={{ width: '30px', height: '30px', borderRadius: '50%', backgroundColor: misColores.sin, border: '2px solid #ddd', position: 'relative' }}>
+                  <input type="color" value={misColores.sin} onChange={(e) => setMisColores({...misColores, sin: e.target.value})} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer' }} />
+                </div>
+                <span style={{ fontSize: '10px', fontWeight: '900', color: '#2D408F' }}>SIN NIÑ@S</span>
+              </div>
+            </div>
+            <div style={{ backgroundColor: '#FFF', borderRadius: '15px', border: '2px solid #2D408F', overflow: 'hidden' }}>
+               <div style={{ backgroundColor: '#2D408F', padding: '10px', textAlign: 'center' }}><h3 style={{ fontSize: '12px', fontWeight: '900', color: '#FFF', margin: 0 }}>📋 CONDICIONES CONVENIO (PARES)</h3></div>
+               {['ss', 'julio', 'agosto', 'navidad'].map(sec => (
+                 <div key={sec} style={{ borderBottom: '1px solid #EEE' }}>
+                   <button onClick={() => toggleSeccion(sec)} style={{ width: '100%', padding: '12px', background: '#F8F9FA', border: 'none', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                     <span style={{ fontWeight: '900', color: '#2D408F', fontSize: '11px' }}>{sec.toUpperCase()}</span>
+                     <span>{seccionAbierta === sec ? '−' : '+'}</span>
+                   </button>
+                   {seccionAbierta === sec && (
+                     <div style={{ padding: '10px', backgroundColor: '#FFF', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        <div style={{ display: 'flex', gap: '5px' }}>
+                          <button onClick={() => setConvenio({...convenio, [`${sec}_par`]: 'con'})} style={estiloBtnDirecto(convenio[`${sec}_par`] === 'con', 'con')}>CON NIÑ@S</button>
+                          <button onClick={() => setConvenio({...convenio, [`${sec}_par`]: 'sin'})} style={estiloBtnDirecto(convenio[`${sec}_par`] === 'sin', 'sin')}>SIN NIÑ@S</button>
+                        </div>
+                     </div>
+                   )}
+                 </div>
+               ))}
+            </div>
+            <button onClick={() => setMisColores({con:'#76B852', sin:'#FFFFFF'})} style={{ width: '100%', marginTop: '20px', padding: '10px', backgroundColor: '#FFEDED', color: '#D32F2F', border: '1px solid #D32F2F', borderRadius: '8px', fontWeight: '900', fontSize: '10px' }}>⚠️ RESETEAR COLORES</button>
           </div>
         )}
       </main>
+
+      {/* MODAL EXCEPCIÓN */}
+      {diaSeleccionado && (
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(45,64,143,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
+          <div style={{ backgroundColor: '#FFF', padding: '25px', borderRadius: '25px', width: '85%', maxWidth: '350px' }}>
+            <p style={{ textAlign: 'center', fontWeight: '900', color: '#2D408F', fontSize: '18px', marginBottom: '20px' }}>{new Intl.DateTimeFormat('es-ES', { weekday: 'long', day: 'numeric', month: 'short' }).format(new Date(diaSeleccionado))}</p>
+            <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
+              <button onClick={() => { setExcepciones({...excepciones, [diaSeleccionado]: { nota: textoExcepcion, estado: 'con' }}); setDiaSeleccionado(null); }} style={{ flex: 1, padding: '18px', borderRadius: '15px', border: 'none', backgroundColor: misColores.con, color: getTextoParaFondo(misColores.con), fontWeight: '900', fontSize: '10px' }}>CON NIÑ@S</button>
+              <button onClick={() => { setExcepciones({...excepciones, [diaSeleccionado]: { nota: textoExcepcion, estado: 'sin' }}); setDiaSeleccionado(null); }} style={{ flex: 1, padding: '18px', borderRadius: '15px', border: '1px solid #DDD', backgroundColor: misColores.sin, color: getTextoParaFondo(misColores.sin), fontWeight: '900', fontSize: '10px' }}>SIN NIÑ@S</button>
+            </div>
+            <textarea value={textoExcepcion} onChange={e => setTextoExcepcion(e.target.value)} placeholder="Nota..." style={{ width: '100%', height: '80px', borderRadius: '12px', border: '1px solid #DDD', padding: '15px', fontSize: '16px', outline: 'none' }} />
+            <button onClick={() => setDiaSeleccionado(null)} style={{ width: '100%', marginTop: '10px', padding: '15px', background: '#2D408F', color: '#FFF', borderRadius: '15px', border: 'none', fontWeight: '900' }}>CERRAR</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
