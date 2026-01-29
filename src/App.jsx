@@ -100,7 +100,7 @@ const App = () => {
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <img src="/image2.png" alt="Logo" style={{ width: '45px', height: '45px', objectFit: 'contain', borderRadius: '5px' }} />
             <div>
-              <h1 style={{ fontSize: '20px', fontWeight: '900', color: '#2D408F', margin: 0 }}>CustodiApp</h1>
+              <h1 style={{ fontSize: '20px', fontWeight: '900', color: '#2D408F', margin: 0 }}>CustodiApp V3</h1>
               <p style={{ margin: 0, fontSize: '9px', color: '#5F6368', fontWeight: '800' }}>GESTIÓN FAMILIAR</p>
             </div>
           </div>
