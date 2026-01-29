@@ -1,59 +1,36 @@
-:root {
-  /* Obliga a modo claro en navegadores que intentan oscurecer formularios */
-  color-scheme: light;
+/* 1. EL LOGO Y CABECERA */
+header img, .logo, [class*="logo"] {
+    width: 100px !important; 
+    height: 100px !important;
+    margin-bottom: 10px !important;
 }
 
-/* Fondo general y evita scroll horizontal raro */
-html,
-body {
-  margin: 0;
-  padding: 0;
-  background-color: #f9fafb;  /* fondo clarito general */
-  color: #111827;
-  max-width: 100%;
-  overflow-x: hidden;
+header div, .title {
+    font-size: 32px !important;
+    font-weight: bold !important;
 }
 
-#root {
-  max-width: 100%;
-  overflow-x: hidden;
+/* 2. LAS PESTAÑAS (Calendario, Año, etc.) */
+/* He visto que en tu código usas botones simples, vamos a por ellos */
+button {
+    font-size: 18px !important;
+    padding: 12px 18px !important;
+    font-weight: bold !important;
+    border-radius: 12px !important;
 }
 
-/* ===== FORMULARIOS MÓVIL (ANDROID / CHROME / BRAVE) ===== */
-
-input,
-select,
-textarea {
-  background-color: #f1f5f9 !important;         /* fondo gris claro */
-  color: #1e293b !important;                    /* texto gris oscuro */
-  -webkit-text-fill-color: #1e293b !important;  /* fuerza color del texto en Android */
-  border: 1px solid #cbd5e1 !important;         /* borde suave */
-  border-radius: 8px;
-  font-size: 16px;
-  padding: 8px 10px;
-  -webkit-appearance: none !important;
-  appearance: none !important;
-  box-sizing: border-box;
+/* 3. EL CALENDARIO Y LOS TITULOS */
+h2, .month-title {
+    font-size: 28px !important;
+    margin: 20px 0 !important;
 }
 
-/* Opciones de los combos */
-select option {
-  background-color: #f1f5f9 !important;
-  color: #1e293b !important;
+[class*="dayCell"], [class*="day"] {
+    font-size: 22px !important;
 }
 
-/* Icono y texto de los inputs de fecha */
-input[type="date"]::-webkit-inner-spin-button,
-input[type="date"]::-webkit-calendar-picker-indicator {
-  filter: invert(25%) brightness(90%);
-  opacity: 0.9;
-}
-
-input[type="date"]::-webkit-datetime-edit,
-input[type="date"]::-webkit-datetime-edit-fields-wrapper,
-input[type="date"]::-webkit-datetime-edit-text,
-input[type="date"]::-webkit-datetime-edit-year-field,
-input[type="date"]::-webkit-datetime-edit-month-field,
-input[type="date"]::-webkit-datetime-edit-day-field {
-  color: #1e293b !important;
+/* 4. QUITAR EL AIRE DE ABAJO */
+.card, [class*="card"] {
+    padding-bottom: 50px !important;
+    margin-bottom: 50px !important;
 }
