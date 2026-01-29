@@ -5,24 +5,20 @@ const App = () => {
   const [vista, setVista] = useState('Calendario');
   const [fechaVisualizacion, setFechaVisualizacion] = useState(new Date());
   
-  // --- COLORES ---
   const [misColores, setMisColores] = useState(() => {
     const c = localStorage.getItem('custodia_colores');
     return c ? JSON.parse(c) : { con: '#76B852', sin: '#FFFFFF' };
   });
 
-  // --- CICLO BASE ---
   const [cicloPersonalizado, setCicloPersonalizado] = useState(() => {
     const g = localStorage.getItem('custodia_ciclo');
     return g ? JSON.parse(g) : [true,true,true,true,true,true,true,false,false,false,false,false,false,false];
   });
 
-  // --- FECHA INICIO ---
   const [inicioCicloStr, setInicioCicloStr] = useState(() => {
     return localStorage.getItem('custodia_inicio_ciclo') || '2026-01-26';
   });
 
-  // --- DATOS ---
   const [excepciones, setExcepciones] = useState(() => {
     const g = localStorage.getItem('custodia_notas');
     return g ? JSON.parse(g) : {};
@@ -32,7 +28,6 @@ const App = () => {
     return g ? JSON.parse(g) : [];
   });
 
-  // --- CONVENIO ---
   const [convenio, setConvenio] = useState(() => {
     const saved = localStorage.getItem('custodia_convenio_reglas');
     return saved ? JSON.parse(saved) : {
@@ -64,7 +59,6 @@ const App = () => {
     localStorage.setItem('custodia_convenio_reglas', JSON.stringify(convenio));
   }, [cicloPersonalizado, inicioCicloStr, excepciones, vacaciones, misColores, convenio]);
 
-  // --- HELPER: CONTRASTE ---
   const getTextoParaFondo = (hex) => {
     if (!hex) return '#2D408F';
     const clean = hex.replace('#', '');
@@ -76,7 +70,6 @@ const App = () => {
     return (yiq >= 180) ? '#2D408F' : '#FFFFFF';
   };
 
-  // --- LÓGICA FECHAS ---
   const esFechaEnVacaciones = (f) => {
     const ft = new Date(f.getFullYear(), f.getMonth(), f.getDate()).getTime();
     for (let v of vacaciones) {
@@ -124,56 +117,44 @@ const App = () => {
   };
 
   const toggleSeccion = (sec) => {
-    if (seccionAbierta === sec) setSeccionAbierta(null);
-    else setSeccionAbierta(sec);
+    setSeccionAbierta(seccionAbierta === sec ? null : sec);
   };
 
-  // --- LÓGICA BOTONES ---
   const estiloBtnDirecto = (activo, tipo) => {
-    const colorFondo = tipo === 'con' ? misColores.con : misColores.sin;
-    const bg = colorFondo;
+    const bg = tipo === 'con' ? misColores.con : misColores.sin;
     const txt = getTextoParaFondo(bg);
     let border = '1px solid #DDD';
-    let boxShadow = 'none';
-    let fontWeight = '700';
-    if (activo) {
-        border = '3px solid #2D408F'; 
-        boxShadow = '0 2px 6px rgba(0,0,0,0.15)';
-        fontWeight = '900';
-    }
+    if (activo) border = '3px solid #2D408F'; 
     return {
       flex: 1, padding: '10px', borderRadius: '8px', backgroundColor: bg, color: txt, border: border,
-      fontWeight: fontWeight, fontSize: '9px', cursor: 'pointer', boxShadow: boxShadow, transition: 'all 0.15s ease-out'
+      fontWeight: activo ? '900' : '700', fontSize: '9px', cursor: 'pointer', transition: 'all 0.15s ease-out'
     };
   };
 
   return (
     <div style={{ fontFamily: 'system-ui, sans-serif', backgroundColor: '#FFF', height: '100dvh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       
-      {/* HEADER */}
       <header style={{ padding: '8px 10px', borderBottom: '1px solid #EEE' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <img src="/image2.png" alt="Logo" style={{ width: '45px', height: '45px', objectFit: 'contain', borderRadius: '5px' }} />
             <div>
-              <h1 style={{ fontSize: '20px', fontWeight: '900', color: '#2D408F', margin: 0 }}>CustodiApp</h1>
+              <h1 style={{ fontSize: '20px', fontWeight: '900', color: '#76B852', margin: 0 }}>CustodiApp</h1>
               <p style={{ margin: 0, fontSize: '9px', color: '#5F6368', fontWeight: '800' }}>GESTIÓN FAMILIAR</p>
             </div>
           </div>
           <button onClick={capturar} style={{ fontSize: '18px', background: '#F8F9FA', border: '1px solid #DDD', borderRadius: '50%', width: '36px', height: '36px' }}>📸</button>
         </div>
-        
-        <nav style={{ display: 'flex', gap: '2px', justifyContent: 'space-between', alignItems: 'center' }}>
+        <nav style={{ display: 'flex', gap: '2px' }}>
           {['Calendario', 'Año', 'Vacac.', 'Excep.', 'Ajustes'].map(v => (
-            <button key={v} onClick={() => setVista(v)} style={{ flex: v === 'Calendario' ? 2 : 1, height: '32px', fontSize: v === 'Ajustes' ? '24px' : (v === 'Calendario' ? '10px' : '9px'), fontWeight: '900', borderRadius: '6px', border: 'none', backgroundColor: vista === v ? '#2D408F' : '#F8F9FA', color: vista === v ? '#FFF' : '#2D408F', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <button key={v} onClick={() => setVista(v)} style={{ flex: v === 'Calendario' ? 2 : 1, height: '32px', fontSize: v === 'Ajustes' ? '24px' : '9px', fontWeight: '900', borderRadius: '6px', border: 'none', backgroundColor: vista === v ? '#2D408F' : '#F8F9FA', color: vista === v ? '#FFF' : '#2D408F' }}>
               {v === 'Ajustes' ? '⚙️' : v.toUpperCase()}
             </button>
           ))}
         </nav>
       </header>
 
-      {/* MAIN */}
-      <main ref={calendarRef} style={{ flex: 1, padding: '5px 10px', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <main ref={calendarRef} style={{ flex: 1, padding: '5px 10px', display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
         
         {vista === 'Calendario' && (
           <>
@@ -181,30 +162,25 @@ const App = () => {
               <button onClick={() => setFechaVisualizacion(new Date(fechaVisualizacion.getFullYear(), fechaVisualizacion.getMonth() - 1, 1))} style={{ fontSize: '24px', border: 'none', background: 'none', color: '#2D408F' }}>◀</button>
               <div style={{ textAlign: 'center' }}>
                 <h2 style={{ fontSize: '18px', margin: 0, fontWeight: '900', color: '#2D408F' }}>{new Intl.DateTimeFormat('es', { month: 'long', year: 'numeric' }).format(fechaVisualizacion).toUpperCase()}</h2>
-                <button onClick={() => setFechaVisualizacion(new Date())} style={{ border: 'none', background: 'none', color: '#76B852', fontSize: '11px', fontWeight: '900', textDecoration: 'underline' }}>VOLVER AL DÍA DE HOY</button>
+                <button onClick={() => setFechaVisualizacion(new Date())} style={{ border: 'none', background: 'none', color: '#76B852', fontSize: '11px', fontWeight: '900', textDecoration: 'underline' }}>HOY</button>
               </div>
               <button onClick={() => setFechaVisualizacion(new Date(fechaVisualizacion.getFullYear(), fechaVisualizacion.getMonth() + 1, 1))} style={{ fontSize: '24px', border: 'none', background: 'none', color: '#2D408F' }}>▶</button>
             </div>
-            
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '6px', flex: 1, alignContent: 'center' }}>
               {diasSemana.map(d => <div key={d} style={{ textAlign: 'center', fontSize: '12px', fontWeight: '900', color: '#AAA' }}>{d}</div>)}
               {getCeldas(fechaVisualizacion.getFullYear(), fechaVisualizacion.getMonth()).map((c, i) => {
                 const custodial = getEstadoDia(c.f);
-                const esDelMes = c.m === 0;
-                const bg = custodial ? misColores.con : misColores.sin;
-                const txt = getTextoParaFondo(bg);
-                const border = c.f.toDateString() === hoy.toDateString() ? '3px solid #2D408F' : '1px solid #EEE';
+                const bg = c.m === 0 ? (custodial ? misColores.con : misColores.sin) : 'transparent';
                 return (
                   <div key={i} onClick={() => abrirEditor(c.f.toDateString())}
-                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', aspectRatio: '1 / 1', fontSize: '18px', fontWeight: '900', borderRadius: '12px', backgroundColor: bg, color: txt, border: border, position: 'relative', opacity: esDelMes ? 1 : 0.3, pointerEvents: esDelMes ? 'auto' : 'none' }}>
+                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', aspectRatio: '1/1', fontSize: '18px', fontWeight: '900', borderRadius: '12px', backgroundColor: bg, color: getTextoParaFondo(bg), border: c.f.toDateString() === hoy.toDateString() ? '3px solid #2D408F' : '1px solid #EEE', opacity: c.m === 0 ? 1 : 0.3 }}>
                     {c.d}
                     {excepciones[c.f.toDateString()] && <div style={{ width: '6px', height: '6px', backgroundColor: '#F5A623', borderRadius: '50%', position: 'absolute', top: '3px', right: '3px', border: '1px solid white' }}></div>}
                   </div>
                 );
               })}
             </div>
-
-            <div style={{ display: 'flex', gap: '8px', paddingBottom: '10px', marginTop: '10px' }}>
+            <div style={{ display: 'flex', gap: '8px', padding: '10px 0' }}>
               <div style={{ flex: 1, padding: '12px', backgroundColor: misColores.con, color: getTextoParaFondo(misColores.con), borderRadius: '10px', textAlign: 'center', fontWeight: '900', fontSize: '11px' }}>CON NIÑ@S</div>
               <div style={{ flex: 1, padding: '12px', backgroundColor: misColores.sin, color: getTextoParaFondo(misColores.sin), borderRadius: '10px', textAlign: 'center', fontWeight: '900', border: '1.5px solid #EEE', fontSize: '11px' }}>SIN NIÑ@S</div>
             </div>
@@ -212,122 +188,38 @@ const App = () => {
         )}
 
         {vista === 'Año' && (
-          <div style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: '2px 0' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-              <button onClick={() => setFechaVisualizacion(new Date(fechaVisualizacion.getFullYear() - 1, 0, 1))} style={{ border: 'none', background: 'none', color: '#2D408F', fontSize: '24px' }}>◀</button>
-              <h2 style={{ fontSize: '20px', fontWeight: '900', color: '#2D408F' }}>AÑO {fechaVisualizacion.getFullYear()}</h2>
-              <button onClick={() => setFechaVisualizacion(new Date(fechaVisualizacion.getFullYear() + 1, 0, 1))} style={{ border: 'none', background: 'none', color: '#2D408F', fontSize: '24px' }}>▶</button>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', flex: 1 }}>
-              {Array.from({ length: 12 }).map((_, i) => (
-                <div key={i} 
-                  onClick={() => {
-                    // Acción: Cambiar el mes de visualización y saltar a la vista Calendario
-                    setFechaVisualizacion(new Date(fechaVisualizacion.getFullYear(), i, 1));
-                    setVista('Calendario');
-                  }}
-                  style={{ border: '1.2px solid #EEE', borderRadius: '12px', padding: '6px', display: 'flex', flexDirection: 'column', cursor: 'pointer', backgroundColor: '#FDFDFD' }}>
-                  <h3 style={{ fontSize: '9px', margin: '0 0 3px 0', textAlign: 'center', fontWeight: '900', color: '#2D408F' }}>{new Intl.DateTimeFormat('es', { month: 'short' }).format(new Date(fechaVisualizacion.getFullYear(), i, 1)).toUpperCase()}</h3>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '1.5px', flex: 1 }}>
-                    {getCeldas(fechaVisualizacion.getFullYear(), i).map((c, j) => {
-                      const custodial = getEstadoDia(c.f);
-                      const bg = c.m === 0 ? (custodial ? misColores.con : misColores.sin) : 'transparent';
-                      const txt = c.m === 0 ? getTextoParaFondo(bg) : '#EEE';
-                      return <div key={j} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '6px', fontWeight: '800', backgroundColor: bg, color: txt }}>{c.d}</div>;
-                    })}
-                  </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+            {Array.from({ length: 12 }).map((_, i) => (
+              <div key={i} onClick={() => { setFechaVisualizacion(new Date(fechaVisualizacion.getFullYear(), i, 1)); setVista('Calendario'); }} style={{ border: '1px solid #EEE', borderRadius: '8px', padding: '4px', cursor: 'pointer' }}>
+                <h3 style={{ fontSize: '8px', textAlign: 'center', margin: '0 0 2px 0', color: '#2D408F' }}>{new Intl.DateTimeFormat('es', { month: 'short' }).format(new Date(fechaVisualizacion.getFullYear(), i, 1)).toUpperCase()}</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '1px' }}>
+                  {getCeldas(fechaVisualizacion.getFullYear(), i).map((c, j) => {
+                    const bg = c.m === 0 ? (getEstadoDia(c.f) ? misColores.con : misColores.sin) : 'transparent';
+                    return <div key={j} style={{ width: '100%', aspectRatio: '1/1', backgroundColor: bg, borderRadius: '2px' }}></div>;
+                  })}
                 </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {vista === 'Vacac.' && (
-          <div style={{ padding: '10px', overflowY: 'auto', flex: 1 }}>
-            <h2 style={{ fontSize: '18px', fontWeight: '900', color: '#2D408F', marginBottom: '15px' }}>VACACIONES</h2>
-            <div style={{ backgroundColor: '#F8F9FA', padding: '15px', borderRadius: '15px', border: '1px solid #EEE', marginBottom: '15px' }}>
-              <input type="date" value={vacaInicio} onChange={e => setVacaInicio(e.target.value)} style={{ width: '100%', marginBottom: '10px', padding: '12px', borderRadius: '10px', border: '1px solid #DDD' }} />
-              <input type="date" value={vacaFin} onChange={e => setVacaFin(e.target.value)} style={{ width: '100%', marginBottom: '10px', padding: '12px', borderRadius: '10px', border: '1px solid #DDD' }} />
-              <div style={{ display: 'flex', gap: '8px', marginBottom: '15px' }}>
-                <button onClick={() => setVacaTipo('con')} style={estiloBtnDirecto(vacaTipo === 'con', 'con')}>CON NIÑ@S</button>
-                <button onClick={() => setVacaTipo('sin')} style={estiloBtnDirecto(vacaTipo === 'sin', 'sin')}>SIN NIÑ@S</button>
-              </div>
-              <button onClick={() => { if(vacaInicio && vacaFin) setVacaciones([...vacaciones, {inicio:vacaInicio, fin:vacaFin, tipo:vacaTipo}]); }} style={{ width: '100%', padding: '15px', backgroundColor: '#2D408F', color: '#FFF', borderRadius: '12px', fontWeight: '900' }}>GUARDAR</button>
-            </div>
-            {vacaciones.map((v, idx) => (
-              <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', padding: '12px', backgroundColor: v.tipo === 'con' ? '#E9F5E1' : '#E8EAF6', borderRadius: '10px', marginBottom: '8px', borderLeft: `5px solid ${v.tipo === 'con' ? misColores.con : misColores.sin}` }}>
-                <span style={{ fontSize: '12px', fontWeight: '700' }}>{new Date(v.inicio).toLocaleDateString('es-ES')} al {new Date(v.fin).toLocaleDateString('es-ES')}</span>
-                <button onClick={() => setVacaciones(vacaciones.filter((_, i) => i !== idx))} style={{ color: 'red', border: 'none', background: 'none', fontWeight: '900', fontSize: '18px' }}>✕</button>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {vista === 'Excep.' && (
-          <div style={{ padding: '10px', overflowY: 'auto', flex: 1 }}>
-            <h2 style={{ fontSize: '18px', fontWeight: '900', color: '#2D408F', marginBottom: '15px' }}>EXCEPCIONES</h2>
-            <div style={{ backgroundColor: '#F8F9FA', padding: '15px', borderRadius: '15px', border: '1px solid #EEE', marginBottom: '20px' }}>
-              <input type="date" id="fechaEx" defaultValue={hoyISO} style={{ width: '100%', marginBottom: '10px', padding: '12px', borderRadius: '10px', border: '1px solid #DDD' }} />
-              <textarea id="notaEx" placeholder="Nota..." style={{ width: '100%', height: '60px', borderRadius: '10px', border: '1px solid #DDD', padding: '10px', marginBottom: '10px', fontSize: '14px' }} />
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <button onClick={() => { const f = new Date(document.getElementById('fechaEx').value).toDateString(); setExcepciones({...excepciones, [f]: { nota: document.getElementById('notaEx').value, estado: 'con' }}); document.getElementById('notaEx').value = ''; }} style={{ flex: 1, padding: '12px', borderRadius: '10px', backgroundColor: misColores.con, color: getTextoParaFondo(misColores.con), border: 'none', fontWeight: '900', fontSize: '10px' }}>AÑADIR CON NIÑ@S</button>
-                <button onClick={() => { const f = new Date(document.getElementById('fechaEx').value).toDateString(); setExcepciones({...excepciones, [f]: { nota: document.getElementById('notaEx').value, estado: 'sin' }}); document.getElementById('notaEx').value = ''; }} style={{ flex: 1, padding: '12px', borderRadius: '10px', backgroundColor: misColores.sin, color: getTextoParaFondo(misColores.sin), border: '1px solid #DDD', fontWeight: '900', fontSize: '10px' }}>AÑADIR SIN NIÑ@S</button>
-              </div>
-            </div>
-            {Object.keys(excepciones).sort((a,b) => new Date(b)-new Date(a)).map(id => (
-              <div key={id} style={{ padding: '15px', backgroundColor: '#F8F9FA', borderRadius: '15px', marginBottom: '10px', borderLeft: `6px solid ${excepciones[id].estado === 'con' ? misColores.con : misColores.sin}`, position: 'relative' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: '#2D408F', fontWeight: '900' }}>{new Date(id).toLocaleDateString('es-ES')}</span>
-                  <button onClick={() => { const n = {...excepciones}; delete n[id]; setExcepciones(n); }} style={{ color: 'red', border: 'none', background: 'none', fontWeight: '900', fontSize: '18px' }}>✕</button>
-                </div>
-                <div style={{ fontSize: '10px', fontWeight: '800', color: excepciones[id].estado === 'con' ? misColores.con : '#2D408F' }}>{excepciones[id].estado === 'con' ? 'CON NIÑ@S' : 'SIN NIÑ@S'}</div>
-                {excepciones[id].nota && <div style={{ fontSize: '13px', fontStyle: 'italic', marginTop: '5px' }}>"{excepciones[id].nota}"</div>}
               </div>
             ))}
           </div>
         )}
 
         {vista === 'Ajustes' && (
-          <div style={{ padding: '10px', overflowY: 'auto', flex: 1 }}>
-            <h2 style={{ fontSize: '16px', fontWeight: '900', color: '#2D408F', marginBottom: '10px' }}>CONFIGURACIÓN CICLO</h2>
-            <div style={{ marginBottom: '15px' }}>
-              <label style={{ fontSize: '10px', fontWeight: '900', color: '#5F6368', marginBottom: '5px', display: 'block' }}>FECHA INICIO (LUNES DE REFERENCIA)</label>
-              <input type="date" value={inicioCicloStr} onChange={e => setInicioCicloStr(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '10px', border: '1px solid #DDD', fontWeight: '700', color: '#2D408F' }} />
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px', backgroundColor: '#F8F9FA', padding: '10px', borderRadius: '15px', border: '1px solid #EEE', marginBottom: '15px' }}>
+          <div style={{ padding: '5px' }}>
+            <h3 style={{ fontSize: '14px', color: '#2D408F', marginBottom: '5px' }}>CONFIGURACIÓN CICLO</h3>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px', background: '#F8F9FA', padding: '8px', borderRadius: '12px', marginBottom: '10px' }}>
               {cicloPersonalizado.map((esCon, i) => {
                 const bg = esCon ? misColores.con : misColores.sin;
-                const txt = getTextoParaFondo(bg);
-                const border = (bg.toLowerCase() === '#ffffff' || bg.toLowerCase() === '#fff') ? '1px solid #DDD' : 'none';
-                return (
-                  <div key={i} onClick={() => { const n = [...cicloPersonalizado]; n[i] = !n[i]; setCicloPersonalizado(n); }} style={{ height: '35px', borderRadius: '8px', backgroundColor: bg, color: txt, border: border, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
-                    <span style={{ fontSize: '12px', fontWeight: '900' }}>{i+1}</span>
-                    <span style={{ fontSize: '7px', fontWeight: '800' }}>{esCon ? 'CON' : 'SIN'}</span>
-                  </div>
-                );
+                return <div key={i} onClick={() => { const n = [...cicloPersonalizado]; n[i] = !n[i]; setCicloPersonalizado(n); }} style={{ height: '35px', borderRadius: '6px', backgroundColor: bg, color: getTextoParaFondo(bg), border: bg.toLowerCase()==='#ffffff'?'1px solid #DDD':'none', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontSize: '10px' }}>
+                  <b>{i+1}</b><span style={{fontSize:'7px'}}>{esCon?'CON':'SIN'}</span>
+                </div>
               })}
-            </div>
-            <h3 style={{ fontSize: '12px', fontWeight: '900', color: '#5F6368', marginBottom: '8px' }}>PERSONALIZAR COLORES</h3>
-            <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
-              <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: '#F8F9FA', padding: '10px', borderRadius: '10px', border: '1px solid #EEE' }}>
-                <div style={{ width: '30px', height: '30px', borderRadius: '50%', backgroundColor: misColores.con, border: '2px solid #ddd', position: 'relative' }}>
-                  <input type="color" value={misColores.con} onChange={(e) => setMisColores({...misColores, con: e.target.value})} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer' }} />
-                </div>
-                <span style={{ fontSize: '10px', fontWeight: '900', color: '#2D408F' }}>CON NIÑ@S</span>
-              </div>
-              <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: '#F8F9FA', padding: '10px', borderRadius: '10px', border: '1px solid #EEE' }}>
-                <div style={{ width: '30px', height: '30px', borderRadius: '50%', backgroundColor: misColores.sin, border: '2px solid #ddd', position: 'relative' }}>
-                  <input type="color" value={misColores.sin} onChange={(e) => setMisColores({...misColores, sin: e.target.value})} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer' }} />
-                </div>
-                <span style={{ fontSize: '10px', fontWeight: '900', color: '#2D408F' }}>SIN NIÑ@S</span>
-              </div>
             </div>
             <div style={{ backgroundColor: '#FFF', borderRadius: '15px', border: '2px solid #2D408F', overflow: 'hidden' }}>
                <div style={{ backgroundColor: '#2D408F', padding: '10px', textAlign: 'center' }}><h3 style={{ fontSize: '12px', fontWeight: '900', color: '#FFF', margin: 0 }}>📋 CONDICIONES CONVENIO (PARES)</h3></div>
                {['ss', 'julio', 'agosto', 'navidad'].map(sec => (
                  <div key={sec} style={{ borderBottom: '1px solid #EEE' }}>
                    <button onClick={() => toggleSeccion(sec)} style={{ width: '100%', padding: '12px', background: '#F8F9FA', border: 'none', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                     <span style={{ fontWeight: '900', color: '#2D408F', fontSize: '11px' }}>{sec.toUpperCase()}</span>
+                     <span style={{ fontWeight: '900', color: '#2D408F', fontSize: '11px' }}>{sec === 'ss' ? 'SEMANA SANTA' : sec.toUpperCase()}</span>
                      <span>{seccionAbierta === sec ? '−' : '+'}</span>
                    </button>
                    {seccionAbierta === sec && (
@@ -341,25 +233,9 @@ const App = () => {
                  </div>
                ))}
             </div>
-            <button onClick={() => setMisColores({con:'#76B852', sin:'#FFFFFF'})} style={{ width: '100%', marginTop: '20px', padding: '10px', backgroundColor: '#FFEDED', color: '#D32F2F', border: '1px solid #D32F2F', borderRadius: '8px', fontWeight: '900', fontSize: '10px' }}>⚠️ RESETEAR COLORES</button>
           </div>
         )}
       </main>
-
-      {/* MODAL EXCEPCIÓN */}
-      {diaSeleccionado && (
-        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(45,64,143,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
-          <div style={{ backgroundColor: '#FFF', padding: '25px', borderRadius: '25px', width: '85%', maxWidth: '350px' }}>
-            <p style={{ textAlign: 'center', fontWeight: '900', color: '#2D408F', fontSize: '18px', marginBottom: '20px' }}>{new Intl.DateTimeFormat('es-ES', { weekday: 'long', day: 'numeric', month: 'short' }).format(new Date(diaSeleccionado))}</p>
-            <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
-              <button onClick={() => { setExcepciones({...excepciones, [diaSeleccionado]: { nota: textoExcepcion, estado: 'con' }}); setDiaSeleccionado(null); }} style={{ flex: 1, padding: '18px', borderRadius: '15px', border: 'none', backgroundColor: misColores.con, color: getTextoParaFondo(misColores.con), fontWeight: '900', fontSize: '10px' }}>CON NIÑ@S</button>
-              <button onClick={() => { setExcepciones({...excepciones, [diaSeleccionado]: { nota: textoExcepcion, estado: 'sin' }}); setDiaSeleccionado(null); }} style={{ flex: 1, padding: '18px', borderRadius: '15px', border: '1px solid #DDD', backgroundColor: misColores.sin, color: getTextoParaFondo(misColores.sin), fontWeight: '900', fontSize: '10px' }}>SIN NIÑ@S</button>
-            </div>
-            <textarea value={textoExcepcion} onChange={e => setTextoExcepcion(e.target.value)} placeholder="Nota..." style={{ width: '100%', height: '80px', borderRadius: '12px', border: '1px solid #DDD', padding: '15px', fontSize: '16px', outline: 'none' }} />
-            <button onClick={() => setDiaSeleccionado(null)} style={{ width: '100%', marginTop: '10px', padding: '15px', background: '#2D408F', color: '#FFF', borderRadius: '15px', border: 'none', fontWeight: '900' }}>CERRAR</button>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
