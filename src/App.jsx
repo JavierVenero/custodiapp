@@ -4,47 +4,66 @@ import { toPng } from 'html-to-image';
 const App = () => {
   const [vista, setVista] = useState('Calendario');
   const [fechaVisualizacion, setFechaVisualizacion] = useState(new Date());
-  const [fechaConsulta, setFechaConsulta] = useState('');
   
-  // PALETA DE COLORES PERSONALIZABLE
+  // CONFIGURACIÓN DE COLORES
   const [misColores, setMisColores] = useState(() => {
     const c = localStorage.getItem('custodia_colores');
     return c ? JSON.parse(c) : { con: '#76B852', sin: '#FFFFFF', textoSin: '#2D408F' };
   });
 
+  // CICLO BASE (14 DÍAS)
   const [cicloPersonalizado, setCicloPersonalizado] = useState(() => {
     const g = localStorage.getItem('custodia_ciclo');
     return g ? JSON.parse(g) : [true,true,true,true,true,true,true,false,false,false,false,false,false,false];
   });
 
+  // EXCEPCIONES MANUALES
   const [excepciones, setExcepciones] = useState(() => {
     const g = localStorage.getItem('custodia_notas');
     return g ? JSON.parse(g) : {};
   });
 
+  // VACACIONES MANUALES
   const [vacaciones, setVacaciones] = useState(() => {
     const g = localStorage.getItem('custodia_vacaciones');
     return g ? JSON.parse(g) : [];
   });
+
+  // NUEVO: CONFIGURACIÓN DEL CONVENIO (EL CEREBRO)
+  const [convenio, setConvenio] = useState(() => {
+    const saved = localStorage.getItem('custodia_convenio_reglas');
+    return saved ? JSON.parse(saved) : {
+      ss_par: 'con',       // Semana Santa años pares: 'con' o 'sin'
+      verano_par: 'con',   // Quién elige/empieza en años pares
+      navidad_par: 'con'   // Quién tiene el primer turno (Nochebuena) en años pares
+    };
+  });
   
+  // ESTADOS TEMPORALES DE INTERFAZ
   const hoyISO = new Date().toISOString().split('T')[0];
   const [vacaInicio, setVacaInicio] = useState(hoyISO);
   const [vacaFin, setVacaFin] = useState(hoyISO);
   const [vacaTipo, setVacaTipo] = useState('con');
-  
   const [diaSeleccionado, setDiaSeleccionado] = useState(null);
   const [textoExcepcion, setTextoExcepcion] = useState('');
   
+  // Estado para desplegables del convenio
+  const [seccionAbierta, setSeccionAbierta] = useState(null);
+
   const calendarRef = useRef(null);
   const hoy = new Date();
   const diasSemana = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
 
+  // GUARDAR TODO EN LOCALSTORAGE
   useEffect(() => {
     localStorage.setItem('custodia_ciclo', JSON.stringify(cicloPersonalizado));
     localStorage.setItem('custodia_notas', JSON.stringify(excepciones));
     localStorage.setItem('custodia_vacaciones', JSON.stringify(vacaciones));
     localStorage.setItem('custodia_colores', JSON.stringify(misColores));
-  }, [cicloPersonalizado, excepciones, vacaciones, misColores]);
+    localStorage.setItem('custodia_convenio_reglas', JSON.stringify(convenio));
+  }, [cicloPersonalizado, excepciones, vacaciones, misColores, convenio]);
+
+  // --- LÓGICA DE FECHAS ---
 
   const esFechaEnVacaciones = (f) => {
     const ft = new Date(f.getFullYear(), f.getMonth(), f.getDate()).getTime();
@@ -55,7 +74,8 @@ const App = () => {
   };
 
   const tieneCustodiaOriginal = (f) => {
-    const ref = new Date(2026, 0, 1);
+    const ref = new Date(2026, 0, 1); // 1 Enero 2026 es jueves (índice 3 en array si empezamos lunes)
+    // Ajuste simple para ciclo de 14 días
     const dias = Math.floor((f.getTime() - ref.getTime()) / (1000 * 60 * 60 * 24));
     let pos = dias % 14;
     if (pos < 0) pos += 14;
@@ -83,7 +103,7 @@ const App = () => {
 
   const capturar = () => {
     if (!calendarRef.current) return;
-    toPng(calendarRef.current, { cacheBust: true, filter: (n) => n.tagName !== 'BUTTON' })
+    toPng(calendarRef.current, { cacheBust: true, filter: (n) => n.tagName !== 'BUTTON' && !n.classList?.contains('no-capture') })
       .then((url) => { const a = document.createElement('a'); a.download = 'CustodiApp.png'; a.href = url; a.click(); });
   };
 
@@ -92,9 +112,15 @@ const App = () => {
     setTextoExcepcion(excepciones[id]?.nota || '');
   };
 
+  const toggleSeccion = (sec) => {
+    if (seccionAbierta === sec) setSeccionAbierta(null);
+    else setSeccionAbierta(sec);
+  };
+
   return (
     <div style={{ fontFamily: 'system-ui, sans-serif', backgroundColor: '#FFF', height: '100dvh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       
+      {/* HEADER */}
       <header style={{ padding: '8px 10px', borderBottom: '1px solid #EEE' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -116,6 +142,7 @@ const App = () => {
         </nav>
       </header>
 
+      {/* MAIN CONTENT */}
       <main ref={calendarRef} style={{ flex: 1, padding: '5px 10px', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         
         {vista === 'Calendario' && (
@@ -225,47 +252,27 @@ const App = () => {
 
         {vista === 'Ajustes' && (
           <div style={{ padding: '10px', overflowY: 'auto', flex: 1 }}>
-            <h2 style={{ fontSize: '18px', fontWeight: '900', color: '#2D408F', marginBottom: '15px' }}>CONFIGURACIÓN CICLO</h2>
-            <p style={{ fontSize: '11px', color: '#666', marginBottom: '10px' }}>Toca los días para cambiar:</p>
             
-            {/* GRID DE DÍAS - AHORA CON DIVS, NO BUTTONS */}
+            {/* CONFIGURACIÓN CICLO */}
+            <h2 style={{ fontSize: '18px', fontWeight: '900', color: '#2D408F', marginBottom: '15px' }}>CONFIGURACIÓN CICLO</h2>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '10px', backgroundColor: '#F8F9FA', padding: '15px', borderRadius: '20px', border: '1px solid #EEE', marginBottom: '20px' }}>
               {cicloPersonalizado.map((esCon, i) => (
-                <div 
-                  key={i} 
-                  onClick={() => { const n = [...cicloPersonalizado]; n[i] = !n[i]; setCicloPersonalizado(n); }} 
-                  style={{ 
-                    height: '55px', 
-                    borderRadius: '12px', 
-                    backgroundColor: esCon ? misColores.con : misColores.sin, 
-                    color: esCon ? '#FFF' : '#2D408F', 
-                    border: '1px solid #DDD',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    cursor: 'pointer',
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                  }}>
+                <div key={i} onClick={() => { const n = [...cicloPersonalizado]; n[i] = !n[i]; setCicloPersonalizado(n); }} style={{ height: '55px', borderRadius: '12px', backgroundColor: esCon ? misColores.con : misColores.sin, color: esCon ? '#FFF' : '#2D408F', border: '1px solid #DDD', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
                   <span style={{ fontSize: '16px', fontWeight: '900' }}>{i+1}</span>
                   <span style={{ fontSize: '8px', fontWeight: '800', marginTop: '2px' }}>{esCon ? 'CON' : 'SIN'}</span>
                 </div>
               ))}
             </div>
 
-            {/* SELECCIÓN DE COLORES */}
+            {/* COLORES */}
             <h3 style={{ fontSize: '14px', fontWeight: '900', color: '#5F6368', marginBottom: '10px' }}>PERSONALIZAR COLORES</h3>
             <div style={{ display: 'flex', gap: '15px', marginBottom: '25px' }}>
-              
-              {/* Selector CON NIÑ@S */}
               <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '10px', backgroundColor: '#F8F9FA', padding: '15px', borderRadius: '12px', border: '1px solid #EEE' }}>
                 <div style={{ position: 'relative', width: '40px', height: '40px', borderRadius: '50%', backgroundColor: misColores.con, border: '2px solid #ddd', overflow: 'hidden' }}>
                   <input type="color" value={misColores.con} onChange={(e) => setMisColores({...misColores, con: e.target.value})} style={{ opacity: 0, position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', cursor: 'pointer' }} />
                 </div>
                 <span style={{ fontSize: '11px', fontWeight: '900', color: '#2D408F' }}>CON NIÑ@S</span>
               </div>
-
-              {/* Selector SIN NIÑ@S */}
               <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '10px', backgroundColor: '#F8F9FA', padding: '15px', borderRadius: '12px', border: '1px solid #EEE' }}>
                 <div style={{ position: 'relative', width: '40px', height: '40px', borderRadius: '50%', backgroundColor: misColores.sin, border: '2px solid #ddd', overflow: 'hidden' }}>
                   <input type="color" value={misColores.sin} onChange={(e) => setMisColores({...misColores, sin: e.target.value})} style={{ opacity: 0, position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', cursor: 'pointer' }} />
@@ -274,18 +281,67 @@ const App = () => {
               </div>
             </div>
 
-            <div style={{ backgroundColor: '#E8EAF6', padding: '20px', borderRadius: '15px', border: '2px solid #2D408F', boxShadow: '0 4px 10px rgba(45, 64, 143, 0.15)' }}>
-               <h3 style={{ fontSize: '14px', fontWeight: '900', color: '#2D408F', marginBottom: '10px', textAlign: 'center' }}>CONVENIO REGULADOR</h3>
-               <button onClick={() => {
-                const c2026 = [
-                  { inicio: '2026-03-27', fin: '2026-04-05', tipo: 'con' },
-                  { inicio: '2026-07-01', fin: '2026-07-15', tipo: 'con' },
-                  { inicio: '2026-08-01', fin: '2026-08-15', tipo: 'con' }
-                ];
-                setVacaciones(c2026);
-                alert("Convenio Estándar Aplicado");
-               }} style={{ width: '100%', padding: '16px', backgroundColor: '#2D408F', color: '#FFF', borderRadius: '12px', border: 'none', fontWeight: '900', fontSize: '13px', cursor: 'pointer' }}>APLICAR CONVENIO ESTÁNDAR DE CUSTODIA COMPARTIDA</button>
+            {/* NUEVO BLOQUE: REGLAS DEL CONVENIO (DESPLEGABLES) */}
+            <div style={{ backgroundColor: '#FFF', borderRadius: '15px', border: '2px solid #2D408F', overflow: 'hidden', boxShadow: '0 4px 15px rgba(45, 64, 143, 0.1)' }}>
+               <div style={{ backgroundColor: '#2D408F', padding: '15px', textAlign: 'center' }}>
+                 <h3 style={{ fontSize: '14px', fontWeight: '900', color: '#FFF', margin: 0 }}>📋 AÑADIR CONDICIONES CONVENIO</h3>
+                 <p style={{ fontSize: '10px', color: '#E0E0E0', margin: '5px 0 0 0' }}>Define quién tiene a los niños en AÑOS PARES</p>
+               </div>
+
+               {/* SECCIÓN SEMANA SANTA */}
+               <div style={{ borderBottom: '1px solid #EEE' }}>
+                 <button onClick={() => toggleSeccion('ss')} style={{ width: '100%', padding: '15px', background: '#F8F9FA', border: 'none', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}>
+                   <span style={{ fontWeight: '900', color: '#2D408F', fontSize: '13px' }}>🐰 SEMANA SANTA</span>
+                   <span style={{ fontSize: '18px' }}>{seccionAbierta === 'ss' ? '−' : '+'}</span>
+                 </button>
+                 {seccionAbierta === 'ss' && (
+                   <div style={{ padding: '15px', backgroundColor: '#FFF' }}>
+                     <p style={{ fontSize: '11px', fontWeight: '800', color: '#666', marginBottom: '10px' }}>¿Con quién están en AÑO PAR?</p>
+                     <div style={{ display: 'flex', gap: '10px' }}>
+                       <button onClick={() => setConvenio({...convenio, ss_par: 'con'})} style={{ flex: 1, padding: '12px', borderRadius: '8px', border: convenio.ss_par === 'con' ? 'none' : '1px solid #DDD', backgroundColor: convenio.ss_par === 'con' ? misColores.con : '#FFF', color: convenio.ss_par === 'con' ? '#FFF' : '#666', fontWeight: '900' }}>CONMIGO</button>
+                       <button onClick={() => setConvenio({...convenio, ss_par: 'sin'})} style={{ flex: 1, padding: '12px', borderRadius: '8px', border: convenio.ss_par === 'sin' ? 'none' : '1px solid #DDD', backgroundColor: convenio.ss_par === 'sin' ? misColores.sin : '#FFF', color: convenio.ss_par === 'sin' ? '#2D408F' : '#666', fontWeight: '900' }}>SIN MÍ</button>
+                     </div>
+                   </div>
+                 )}
+               </div>
+
+               {/* SECCIÓN VERANO */}
+               <div style={{ borderBottom: '1px solid #EEE' }}>
+                 <button onClick={() => toggleSeccion('verano')} style={{ width: '100%', padding: '15px', background: '#F8F9FA', border: 'none', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}>
+                   <span style={{ fontWeight: '900', color: '#2D408F', fontSize: '13px' }}>☀️ VERANO (JUL/AGO)</span>
+                   <span style={{ fontSize: '18px' }}>{seccionAbierta === 'verano' ? '−' : '+'}</span>
+                 </button>
+                 {seccionAbierta === 'verano' && (
+                   <div style={{ padding: '15px', backgroundColor: '#FFF' }}>
+                     <p style={{ fontSize: '11px', fontWeight: '800', color: '#666', marginBottom: '10px' }}>¿Quién elige periodo en AÑO PAR?</p>
+                     <div style={{ display: 'flex', gap: '10px' }}>
+                       <button onClick={() => setConvenio({...convenio, verano_par: 'con'})} style={{ flex: 1, padding: '12px', borderRadius: '8px', border: convenio.verano_par === 'con' ? 'none' : '1px solid #DDD', backgroundColor: convenio.verano_par === 'con' ? misColores.con : '#FFF', color: convenio.verano_par === 'con' ? '#FFF' : '#666', fontWeight: '900' }}>ELIJO YO</button>
+                       <button onClick={() => setConvenio({...convenio, verano_par: 'sin'})} style={{ flex: 1, padding: '12px', borderRadius: '8px', border: convenio.verano_par === 'sin' ? 'none' : '1px solid #DDD', backgroundColor: convenio.verano_par === 'sin' ? misColores.sin : '#FFF', color: convenio.verano_par === 'sin' ? '#2D408F' : '#666', fontWeight: '900' }}>ELIGE EL OTRO</button>
+                     </div>
+                   </div>
+                 )}
+               </div>
+
+               {/* SECCIÓN NAVIDAD */}
+               <div>
+                 <button onClick={() => toggleSeccion('navidad')} style={{ width: '100%', padding: '15px', background: '#F8F9FA', border: 'none', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}>
+                   <span style={{ fontWeight: '900', color: '#2D408F', fontSize: '13px' }}>🎄 NAVIDAD</span>
+                   <span style={{ fontSize: '18px' }}>{seccionAbierta === 'navidad' ? '−' : '+'}</span>
+                 </button>
+                 {seccionAbierta === 'navidad' && (
+                   <div style={{ padding: '15px', backgroundColor: '#FFF' }}>
+                     <p style={{ fontSize: '11px', fontWeight: '800', color: '#666', marginBottom: '10px' }}>1º Turno (Nochebuena) en AÑO PAR:</p>
+                     <div style={{ display: 'flex', gap: '10px' }}>
+                       <button onClick={() => setConvenio({...convenio, navidad_par: 'con'})} style={{ flex: 1, padding: '12px', borderRadius: '8px', border: convenio.navidad_par === 'con' ? 'none' : '1px solid #DDD', backgroundColor: convenio.navidad_par === 'con' ? misColores.con : '#FFF', color: convenio.navidad_par === 'con' ? '#FFF' : '#666', fontWeight: '900' }}>CONMIGO</button>
+                       <button onClick={() => setConvenio({...convenio, navidad_par: 'sin'})} style={{ flex: 1, padding: '12px', borderRadius: '8px', border: convenio.navidad_par === 'sin' ? 'none' : '1px solid #DDD', backgroundColor: convenio.navidad_par === 'sin' ? misColores.sin : '#FFF', color: convenio.navidad_par === 'sin' ? '#2D408F' : '#666', fontWeight: '900' }}>SIN MÍ</button>
+                     </div>
+                   </div>
+                 )}
+               </div>
             </div>
+            
+            <p style={{ textAlign: 'center', fontSize: '10px', color: '#999', marginTop: '20px' }}>La aplicación calculará las fechas automáticamente según estas reglas.</p>
+
           </div>
         )}
       </main>
