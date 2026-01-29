@@ -29,17 +29,19 @@ const App = () => {
     return g ? JSON.parse(g) : [];
   });
 
-  // NUEVO: CONFIGURACIÓN DEL CONVENIO (EL CEREBRO)
+  // CEREBRO DEL CONVENIO (V6 - Lógica ampliada)
   const [convenio, setConvenio] = useState(() => {
     const saved = localStorage.getItem('custodia_convenio_reglas');
     return saved ? JSON.parse(saved) : {
-      ss_par: 'con',       // Semana Santa años pares: 'con' o 'sin'
-      verano_par: 'con',   // Quién elige/empieza en años pares
-      navidad_par: 'con'   // Quién tiene el primer turno (Nochebuena) en años pares
+      // Semana Santa Pares: 'con' (entera), 'sin' (entera), 'mitad_con' (mitad empiezo yo), 'mitad_sin' (mitad empieza otro)
+      ss_par: 'con',       
+      // Verano Pares: 'con' (1ª quincena Julio yo), 'sin' (1ª quincena Julio otro)
+      verano_par: 'con',   
+      // Navidad Pares: 'con' (1er turno yo), 'sin' (1er turno otro)
+      navidad_par: 'con'   
     };
   });
   
-  // ESTADOS TEMPORALES DE INTERFAZ
   const hoyISO = new Date().toISOString().split('T')[0];
   const [vacaInicio, setVacaInicio] = useState(hoyISO);
   const [vacaFin, setVacaFin] = useState(hoyISO);
@@ -47,14 +49,12 @@ const App = () => {
   const [diaSeleccionado, setDiaSeleccionado] = useState(null);
   const [textoExcepcion, setTextoExcepcion] = useState('');
   
-  // Estado para desplegables del convenio
   const [seccionAbierta, setSeccionAbierta] = useState(null);
 
   const calendarRef = useRef(null);
   const hoy = new Date();
   const diasSemana = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
 
-  // GUARDAR TODO EN LOCALSTORAGE
   useEffect(() => {
     localStorage.setItem('custodia_ciclo', JSON.stringify(cicloPersonalizado));
     localStorage.setItem('custodia_notas', JSON.stringify(excepciones));
@@ -64,7 +64,6 @@ const App = () => {
   }, [cicloPersonalizado, excepciones, vacaciones, misColores, convenio]);
 
   // --- LÓGICA DE FECHAS ---
-
   const esFechaEnVacaciones = (f) => {
     const ft = new Date(f.getFullYear(), f.getMonth(), f.getDate()).getTime();
     for (let v of vacaciones) {
@@ -74,8 +73,7 @@ const App = () => {
   };
 
   const tieneCustodiaOriginal = (f) => {
-    const ref = new Date(2026, 0, 1); // 1 Enero 2026 es jueves (índice 3 en array si empezamos lunes)
-    // Ajuste simple para ciclo de 14 días
+    const ref = new Date(2026, 0, 1);
     const dias = Math.floor((f.getTime() - ref.getTime()) / (1000 * 60 * 60 * 24));
     let pos = dias % 14;
     if (pos < 0) pos += 14;
@@ -142,7 +140,7 @@ const App = () => {
         </nav>
       </header>
 
-      {/* MAIN CONTENT */}
+      {/* MAIN */}
       <main ref={calendarRef} style={{ flex: 1, padding: '5px 10px', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         
         {vista === 'Calendario' && (
@@ -281,25 +279,29 @@ const App = () => {
               </div>
             </div>
 
-            {/* NUEVO BLOQUE: REGLAS DEL CONVENIO (DESPLEGABLES) */}
+            {/* NUEVO BLOQUE: REGLAS DEL CONVENIO (FIXED) */}
             <div style={{ backgroundColor: '#FFF', borderRadius: '15px', border: '2px solid #2D408F', overflow: 'hidden', boxShadow: '0 4px 15px rgba(45, 64, 143, 0.1)' }}>
                <div style={{ backgroundColor: '#2D408F', padding: '15px', textAlign: 'center' }}>
                  <h3 style={{ fontSize: '14px', fontWeight: '900', color: '#FFF', margin: 0 }}>📋 AÑADIR CONDICIONES CONVENIO</h3>
-                 <p style={{ fontSize: '10px', color: '#E0E0E0', margin: '5px 0 0 0' }}>Define quién tiene a los niños en AÑOS PARES</p>
+                 <p style={{ fontSize: '10px', color: '#E0E0E0', margin: '5px 0 0 0' }}>Define reglas para los AÑOS PARES</p>
                </div>
 
                {/* SECCIÓN SEMANA SANTA */}
                <div style={{ borderBottom: '1px solid #EEE' }}>
                  <button onClick={() => toggleSeccion('ss')} style={{ width: '100%', padding: '15px', background: '#F8F9FA', border: 'none', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}>
-                   <span style={{ fontWeight: '900', color: '#2D408F', fontSize: '13px' }}>🐰 SEMANA SANTA</span>
+                   <span style={{ fontWeight: '900', color: '#2D408F', fontSize: '13px' }}>🐰 SEMANA SANTA (PARES)</span>
                    <span style={{ fontSize: '18px' }}>{seccionAbierta === 'ss' ? '−' : '+'}</span>
                  </button>
                  {seccionAbierta === 'ss' && (
-                   <div style={{ padding: '15px', backgroundColor: '#FFF' }}>
-                     <p style={{ fontSize: '11px', fontWeight: '800', color: '#666', marginBottom: '10px' }}>¿Con quién están en AÑO PAR?</p>
-                     <div style={{ display: 'flex', gap: '10px' }}>
-                       <button onClick={() => setConvenio({...convenio, ss_par: 'con'})} style={{ flex: 1, padding: '12px', borderRadius: '8px', border: convenio.ss_par === 'con' ? 'none' : '1px solid #DDD', backgroundColor: convenio.ss_par === 'con' ? misColores.con : '#FFF', color: convenio.ss_par === 'con' ? '#FFF' : '#666', fontWeight: '900' }}>CONMIGO</button>
-                       <button onClick={() => setConvenio({...convenio, ss_par: 'sin'})} style={{ flex: 1, padding: '12px', borderRadius: '8px', border: convenio.ss_par === 'sin' ? 'none' : '1px solid #DDD', backgroundColor: convenio.ss_par === 'sin' ? misColores.sin : '#FFF', color: convenio.ss_par === 'sin' ? '#2D408F' : '#666', fontWeight: '900' }}>SIN MÍ</button>
+                   <div style={{ padding: '15px', backgroundColor: '#FFF', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                     <div style={{ display: 'flex', gap: '5px' }}>
+                       <button onClick={() => setConvenio({...convenio, ss_par: 'con'})} style={{ flex: 1, padding: '10px', fontSize: '10px', borderRadius: '6px', border: convenio.ss_par === 'con' ? 'none' : '1px solid #DDD', backgroundColor: convenio.ss_par === 'con' ? misColores.con : '#FFF', color: convenio.ss_par === 'con' ? '#FFF' : '#666', fontWeight: '900' }}>ENTERA CON NIÑ@S</button>
+                       <button onClick={() => setConvenio({...convenio, ss_par: 'sin'})} style={{ flex: 1, padding: '10px', fontSize: '10px', borderRadius: '6px', border: convenio.ss_par === 'sin' ? 'none' : '1px solid #DDD', backgroundColor: convenio.ss_par === 'sin' ? misColores.sin : '#FFF', color: convenio.ss_par === 'sin' ? '#2D408F' : '#666', fontWeight: '900' }}>ENTERA SIN NIÑ@S</button>
+                     </div>
+                     <p style={{ textAlign: 'center', fontSize: '10px', margin: '5px 0', fontWeight: '800', color: '#AAA' }}>- O SI LA COMPARTÍS -</p>
+                     <div style={{ display: 'flex', gap: '5px' }}>
+                        <button onClick={() => setConvenio({...convenio, ss_par: 'mitad_con'})} style={{ flex: 1, padding: '10px', fontSize: '10px', borderRadius: '6px', border: convenio.ss_par === 'mitad_con' ? '2px solid ' + misColores.con : '1px solid #DDD', backgroundColor: convenio.ss_par === 'mitad_con' ? '#F0F9EB' : '#FFF', color: '#444', fontWeight: '900' }}>MITAD (EMPIEZO YO)</button>
+                        <button onClick={() => setConvenio({...convenio, ss_par: 'mitad_sin'})} style={{ flex: 1, padding: '10px', fontSize: '10px', borderRadius: '6px', border: convenio.ss_par === 'mitad_sin' ? '2px solid ' + misColores.sin : '1px solid #DDD', backgroundColor: convenio.ss_par === 'mitad_sin' ? '#F8F9FA' : '#FFF', color: '#444', fontWeight: '900' }}>MITAD (EMPIEZA OTRO)</button>
                      </div>
                    </div>
                  )}
@@ -308,15 +310,15 @@ const App = () => {
                {/* SECCIÓN VERANO */}
                <div style={{ borderBottom: '1px solid #EEE' }}>
                  <button onClick={() => toggleSeccion('verano')} style={{ width: '100%', padding: '15px', background: '#F8F9FA', border: 'none', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}>
-                   <span style={{ fontWeight: '900', color: '#2D408F', fontSize: '13px' }}>☀️ VERANO (JUL/AGO)</span>
+                   <span style={{ fontWeight: '900', color: '#2D408F', fontSize: '13px' }}>☀️ VERANO (PARES)</span>
                    <span style={{ fontSize: '18px' }}>{seccionAbierta === 'verano' ? '−' : '+'}</span>
                  </button>
                  {seccionAbierta === 'verano' && (
                    <div style={{ padding: '15px', backgroundColor: '#FFF' }}>
-                     <p style={{ fontSize: '11px', fontWeight: '800', color: '#666', marginBottom: '10px' }}>¿Quién elige periodo en AÑO PAR?</p>
+                     <p style={{ fontSize: '11px', fontWeight: '800', color: '#666', marginBottom: '10px' }}>¿Quién tiene la 1ª Quincena de JULIO?</p>
                      <div style={{ display: 'flex', gap: '10px' }}>
-                       <button onClick={() => setConvenio({...convenio, verano_par: 'con'})} style={{ flex: 1, padding: '12px', borderRadius: '8px', border: convenio.verano_par === 'con' ? 'none' : '1px solid #DDD', backgroundColor: convenio.verano_par === 'con' ? misColores.con : '#FFF', color: convenio.verano_par === 'con' ? '#FFF' : '#666', fontWeight: '900' }}>ELIJO YO</button>
-                       <button onClick={() => setConvenio({...convenio, verano_par: 'sin'})} style={{ flex: 1, padding: '12px', borderRadius: '8px', border: convenio.verano_par === 'sin' ? 'none' : '1px solid #DDD', backgroundColor: convenio.verano_par === 'sin' ? misColores.sin : '#FFF', color: convenio.verano_par === 'sin' ? '#2D408F' : '#666', fontWeight: '900' }}>ELIGE EL OTRO</button>
+                       <button onClick={() => setConvenio({...convenio, verano_par: 'con'})} style={{ flex: 1, padding: '12px', borderRadius: '8px', border: convenio.verano_par === 'con' ? 'none' : '1px solid #DDD', backgroundColor: convenio.verano_par === 'con' ? misColores.con : '#FFF', color: convenio.verano_par === 'con' ? '#FFF' : '#666', fontWeight: '900' }}>CON NIÑ@S (1º)</button>
+                       <button onClick={() => setConvenio({...convenio, verano_par: 'sin'})} style={{ flex: 1, padding: '12px', borderRadius: '8px', border: convenio.verano_par === 'sin' ? 'none' : '1px solid #DDD', backgroundColor: convenio.verano_par === 'sin' ? misColores.sin : '#FFF', color: convenio.verano_par === 'sin' ? '#2D408F' : '#666', fontWeight: '900' }}>SIN NIÑ@S (1º)</button>
                      </div>
                    </div>
                  )}
@@ -325,15 +327,15 @@ const App = () => {
                {/* SECCIÓN NAVIDAD */}
                <div>
                  <button onClick={() => toggleSeccion('navidad')} style={{ width: '100%', padding: '15px', background: '#F8F9FA', border: 'none', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}>
-                   <span style={{ fontWeight: '900', color: '#2D408F', fontSize: '13px' }}>🎄 NAVIDAD</span>
+                   <span style={{ fontWeight: '900', color: '#2D408F', fontSize: '13px' }}>🎄 NAVIDAD (PARES)</span>
                    <span style={{ fontSize: '18px' }}>{seccionAbierta === 'navidad' ? '−' : '+'}</span>
                  </button>
                  {seccionAbierta === 'navidad' && (
                    <div style={{ padding: '15px', backgroundColor: '#FFF' }}>
-                     <p style={{ fontSize: '11px', fontWeight: '800', color: '#666', marginBottom: '10px' }}>1º Turno (Nochebuena) en AÑO PAR:</p>
+                     <p style={{ fontSize: '11px', fontWeight: '800', color: '#666', marginBottom: '10px' }}>¿Quién tiene el 1er Turno (Nochebuena)?</p>
                      <div style={{ display: 'flex', gap: '10px' }}>
-                       <button onClick={() => setConvenio({...convenio, navidad_par: 'con'})} style={{ flex: 1, padding: '12px', borderRadius: '8px', border: convenio.navidad_par === 'con' ? 'none' : '1px solid #DDD', backgroundColor: convenio.navidad_par === 'con' ? misColores.con : '#FFF', color: convenio.navidad_par === 'con' ? '#FFF' : '#666', fontWeight: '900' }}>CONMIGO</button>
-                       <button onClick={() => setConvenio({...convenio, navidad_par: 'sin'})} style={{ flex: 1, padding: '12px', borderRadius: '8px', border: convenio.navidad_par === 'sin' ? 'none' : '1px solid #DDD', backgroundColor: convenio.navidad_par === 'sin' ? misColores.sin : '#FFF', color: convenio.navidad_par === 'sin' ? '#2D408F' : '#666', fontWeight: '900' }}>SIN MÍ</button>
+                       <button onClick={() => setConvenio({...convenio, navidad_par: 'con'})} style={{ flex: 1, padding: '12px', borderRadius: '8px', border: convenio.navidad_par === 'con' ? 'none' : '1px solid #DDD', backgroundColor: convenio.navidad_par === 'con' ? misColores.con : '#FFF', color: convenio.navidad_par === 'con' ? '#FFF' : '#666', fontWeight: '900' }}>CON NIÑ@S</button>
+                       <button onClick={() => setConvenio({...convenio, navidad_par: 'sin'})} style={{ flex: 1, padding: '12px', borderRadius: '8px', border: convenio.navidad_par === 'sin' ? 'none' : '1px solid #DDD', backgroundColor: convenio.navidad_par === 'sin' ? misColores.sin : '#FFF', color: convenio.navidad_par === 'sin' ? '#2D408F' : '#666', fontWeight: '900' }}>SIN NIÑ@S</button>
                      </div>
                    </div>
                  )}
