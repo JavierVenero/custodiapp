@@ -98,8 +98,8 @@ const App = () => {
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <img src="/image2.png" alt="Logo" style={{ width: '40px' }} />
             <div>
-              <h1 style={{ fontSize: '18px', fontWeight: '900', color: 'red', margin: 0 }}>CustodiApp (V34)</h1>
-              <p style={{ margin: 0, fontSize: '8px', color: '#5F6368' }}>PRUEBA DE CARGA</p>
+              <h1 style={{ fontSize: '18px', fontWeight: '900', color: '#2D408F', margin: 0 }}>CustodiApp</h1>
+              <p style={{ margin: 0, fontSize: '8px', color: '#5F6368' }}>GESTIÓN FAMILIAR</p>
             </div>
           </div>
         </div>
@@ -115,9 +115,25 @@ const App = () => {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '5px' }}>
               {getCeldas(fechaVisualizacion.getFullYear(), fechaVisualizacion.getMonth()).map((c, i) => {
                 const bg = c.m === 0 ? (getEstadoDia(c.f) ? misColores.con : misColores.sin) : '#EEE';
-                return <div key={i} style={{ aspectRatio: '1/1', backgroundColor: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '8px', fontSize: '14px', fontWeight: '900', color: getTextoParaFondo(bg) }}>{c.d}</div>
+                return <div key={i} onClick={() => { if(c.m===0) { setFechaVisualizacion(new Date(c.f)); } }} style={{ aspectRatio: '1/1', backgroundColor: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '8px', fontSize: '14px', fontWeight: '900', color: getTextoParaFondo(bg), border: c.f.toDateString() === hoy.toDateString() ? '3px solid #2D408F' : '1px solid #EEE', opacity: c.m === 0 ? 1 : 0.3 }}>{c.d}</div>
               })}
             </div>
+        )}
+
+        {vista === 'Año' && (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+            {Array.from({ length: 12 }).map((_, i) => (
+              <div key={i} onClick={() => { setFechaVisualizacion(new Date(fechaVisualizacion.getFullYear(), i, 1)); setVista('Calendario'); }} style={{ border: '1px solid #EEE', borderRadius: '8px', padding: '4px', cursor: 'pointer' }}>
+                <h3 style={{ fontSize: '8px', textAlign: 'center', margin: '0 0 2px 0', color: '#2D408F' }}>{new Intl.DateTimeFormat('es', { month: 'short' }).format(new Date(fechaVisualizacion.getFullYear(), i, 1)).toUpperCase()}</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '1px' }}>
+                  {getCeldas(fechaVisualizacion.getFullYear(), i).map((c, j) => {
+                    const bg = c.m === 0 ? (getEstadoDia(c.f) ? misColores.con : misColores.sin) : 'transparent';
+                    return <div key={j} style={{ width: '100%', aspectRatio: '1/1', backgroundColor: bg, borderRadius: '2px' }}></div>;
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
         )}
 
         {vista === 'Ajustes' && (
@@ -154,4 +170,3 @@ const App = () => {
 };
 
 export default App;
-
